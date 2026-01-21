@@ -1,0 +1,72 @@
+<div class="login-container">
+  <div class="login-card">
+    <header class="login-header">
+      <h1>POD System</h1>
+      <p>Staff Login</p>
+    </header>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+      <!-- Error Message -->
+      @if (errorMessage()) {
+        <div class="error-alert" role="alert">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Email Field -->
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="Enter your email"
+          autocomplete="email"
+          inputmode="email"
+          [class.invalid]="emailInvalid"
+        />
+        @if (emailInvalid) {
+          <span class="error-message">Please enter a valid email address</span>
+        }
+      </div>
+
+      <!-- Password Field -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          [class.invalid]="passwordInvalid"
+        />
+        @if (passwordInvalid) {
+          <span class="error-message">Password must be at least 6 characters</span>
+        }
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="login-button"
+        [disabled]="isLoading()"
+      >
+        @if (isLoading()) {
+          <span class="spinner"></span>
+          <span>Signing in...</span>
+        } @else {
+          <span>Sign In</span>
+        }
+      </button>
+    </form>
+
+    <footer class="login-footer">
+      <p>Proof of Delivery System</p>
+      <p class="small">All actions are logged for accountability</p>
+    </footer>
+  </div>
+</div>

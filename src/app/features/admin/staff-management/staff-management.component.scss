@@ -1,0 +1,513 @@
+// Staff Management Styles - Mobile-first
+.staff-management {
+  min-height: 100vh;
+  background: #f3f4f6;
+}
+
+// Header
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #1e3a5f;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  .add-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #1e3a5f;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    &:hover {
+      background: #f3f4f6;
+    }
+  }
+}
+
+// Alerts
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  &-success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  &-error {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+  }
+}
+
+// Staff List
+.staff-list {
+  padding: 1rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6b7280;
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #1e3a5f;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 1rem;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #6b7280;
+
+  svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0 0 1.5rem;
+    font-size: 1.125rem;
+  }
+
+  .add-btn {
+    padding: 0.75rem 1.5rem;
+    background: #1e3a5f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background: #15293f;
+    }
+  }
+}
+
+// Staff Card
+.staff-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 0.75rem;
+
+  &.inactive {
+    opacity: 0.6;
+    background: #f9fafb;
+  }
+
+  .staff-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 200px;
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 1.125rem;
+      flex-shrink: 0;
+    }
+
+    .details {
+      h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .email {
+        margin: 0.125rem 0 0;
+        font-size: 0.8125rem;
+        color: #6b7280;
+      }
+
+      .phone {
+        margin: 0.125rem 0 0;
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+    }
+  }
+
+  .staff-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .role-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+
+      &.inactive {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+    }
+  }
+
+  .staff-actions {
+    display: flex;
+    gap: 0.5rem;
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      &.edit {
+        background: #e0e7ff;
+        color: #3730a3;
+
+        &:hover {
+          background: #c7d2fe;
+        }
+      }
+
+      &.deactivate {
+        background: #fee2e2;
+        color: #b91c1c;
+
+        &:hover {
+          background: #fecaca;
+        }
+      }
+
+      &.activate {
+        background: #d1fae5;
+        color: #065f46;
+
+        &:hover {
+          background: #a7f3d0;
+        }
+      }
+    }
+  }
+}
+
+// Modal
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  padding: 0;
+
+  @media (min-width: 640px) {
+    align-items: center;
+    padding: 1rem;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  overflow-y: auto;
+
+  @media (min-width: 640px) {
+    border-radius: 16px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    background: white;
+
+    h2 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: #f3f4f6;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+
+      svg {
+        width: 18px;
+        height: 18px;
+        color: #6b7280;
+      }
+
+      &:hover {
+        background: #e5e7eb;
+      }
+    }
+  }
+
+  .modal-error {
+    margin: 1rem 1.5rem 0;
+    padding: 0.75rem 1rem;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #b91c1c;
+    font-size: 0.875rem;
+  }
+
+  .edit-info {
+    padding: 0.75rem 1.5rem;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+
+    .email-display {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+  }
+
+  form {
+    padding: 1.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.25rem;
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+
+      &:focus {
+        outline: none;
+        border-color: #1e3a5f;
+      }
+
+      &.invalid {
+        border-color: #ef4444;
+      }
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    .error {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: #ef4444;
+    }
+
+    &.checkbox-group {
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+
+        input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+        }
+
+        span {
+          font-weight: 400;
+        }
+      }
+    }
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+
+    button {
+      flex: 1;
+      padding: 0.875rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+
+      &:hover:not(:disabled) {
+        background: #e5e7eb;
+      }
+    }
+
+    .btn-primary {
+      background: #1e3a5f;
+      color: white;
+
+      &:hover:not(:disabled) {
+        background: #15293f;
+      }
+    }
+
+    .spinner-sm {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  }
+}

@@ -1,0 +1,281 @@
+<div class="staff-management">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
+        </svg>
+      </button>
+      <h1>Staff Management</h1>
+    </div>
+    <button class="add-btn" (click)="openCreateModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+      </svg>
+      Add Staff
+    </button>
+  </header>
+
+  <!-- Success/Error Messages -->
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+      </svg>
+      {{ successMessage() }}
+    </div>
+  }
+
+  @if (staffService.error$ | async; as error) {
+    <div class="alert alert-error">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+      </svg>
+      {{ error }}
+    </div>
+  }
+
+  <!-- Staff List -->
+  <div class="staff-list">
+    @if (staffService.loading$ | async) {
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Loading staff...</span>
+      </div>
+    } @else {
+      @if (staffService.staffList$ | async; as staffList) {
+        @if (staffList.length === 0) {
+          <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+            <p>No staff members yet</p>
+            <button class="add-btn" (click)="openCreateModal()">Add First Staff Member</button>
+          </div>
+        } @else {
+          @for (staff of staffList; track staff.id) {
+            <div class="staff-card" [class.inactive]="!staff.is_active">
+              <div class="staff-info">
+                <div class="avatar" [style.background-color]="getRoleColor(staff.role)">
+                  {{ staff.full_name.charAt(0).toUpperCase() }}
+                </div>
+                <div class="details">
+                  <h3>{{ staff.full_name }}</h3>
+                  <p class="email">{{ staff.email }}</p>
+                  @if (staff.phone) {
+                    <p class="phone">{{ staff.phone }}</p>
+                  }
+                </div>
+              </div>
+              <div class="staff-meta">
+              <span class="role-badge" [style.background-color]="getRoleColor(staff.role)">
+                {{ getRoleLabel(staff.role) }}
+              </span>
+              @if (!staff.is_active) {
+                <span class="status-badge inactive">Inactive</span>
+              }
+            </div>
+            <div class="staff-actions">
+              <button class="action-btn edit" (click)="openEditModal(staff)" title="Edit">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+                  <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+                </svg>
+              </button>
+              <button
+                class="action-btn"
+                [class.activate]="!staff.is_active"
+                [class.deactivate]="staff.is_active"
+                (click)="toggleActive(staff)"
+                [title]="staff.is_active ? 'Deactivate' : 'Activate'"
+              >
+                @if (staff.is_active) {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                  </svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                  </svg>
+                }
+              </button>
+            </div>
+          </div>
+        }
+        }
+      }
+    }
+  </div>
+
+  <!-- Create Modal -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay" (click)="closeCreateModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Add Staff Member</h2>
+          <button class="close-btn" (click)="closeCreateModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="modal-error">{{ errorMessage() }}</div>
+        }
+
+        <form [formGroup]="createForm" (ngSubmit)="createStaff()">
+          <div class="form-group">
+            <label for="create-name">Full Name *</label>
+            <input
+              id="create-name"
+              type="text"
+              formControlName="full_name"
+              placeholder="Enter full name"
+              [class.invalid]="isFieldInvalid(createForm, 'full_name')"
+            />
+            @if (isFieldInvalid(createForm, 'full_name')) {
+              <span class="error">Name is required (min 2 characters)</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="create-email">Email Address *</label>
+            <input
+              id="create-email"
+              type="email"
+              formControlName="email"
+              placeholder="Enter email address"
+              [class.invalid]="isFieldInvalid(createForm, 'email')"
+            />
+            @if (isFieldInvalid(createForm, 'email')) {
+              <span class="error">Valid email is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="create-password">Password *</label>
+            <input
+              id="create-password"
+              type="password"
+              formControlName="password"
+              placeholder="Enter password (min 8 characters)"
+              [class.invalid]="isFieldInvalid(createForm, 'password')"
+            />
+            @if (isFieldInvalid(createForm, 'password')) {
+              <span class="error">Password must be at least 8 characters</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="create-role">Role *</label>
+            <select id="create-role" formControlName="role">
+              @for (role of roles; track role) {
+                <option [value]="role">{{ roleConfig[role].label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="create-phone">Phone (Optional)</label>
+            <input
+              id="create-phone"
+              type="tel"
+              formControlName="phone"
+              placeholder="Enter phone number"
+            />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeCreateModal()">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="spinner-sm"></span> Creating...
+              } @else {
+                Create Staff
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Modal -->
+  @if (showEditModal()) {
+    <div class="modal-overlay" (click)="closeEditModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Edit Staff Member</h2>
+          <button class="close-btn" (click)="closeEditModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="modal-error">{{ errorMessage() }}</div>
+        }
+
+        @if (selectedStaff(); as staff) {
+          <div class="edit-info">
+            <span class="email-display">{{ staff.email }}</span>
+          </div>
+        }
+
+        <form [formGroup]="editForm" (ngSubmit)="updateStaff()">
+          <div class="form-group">
+            <label for="edit-name">Full Name *</label>
+            <input
+              id="edit-name"
+              type="text"
+              formControlName="full_name"
+              [class.invalid]="isFieldInvalid(editForm, 'full_name')"
+            />
+            @if (isFieldInvalid(editForm, 'full_name')) {
+              <span class="error">Name is required (min 2 characters)</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="edit-role">Role *</label>
+            <select id="edit-role" formControlName="role">
+              @for (role of roles; track role) {
+                <option [value]="role">{{ roleConfig[role].label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-phone">Phone</label>
+            <input
+              id="edit-phone"
+              type="tel"
+              formControlName="phone"
+            />
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" formControlName="is_active" />
+              <span>Active</span>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="spinner-sm"></span> Saving...
+              } @else {
+                Save Changes
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

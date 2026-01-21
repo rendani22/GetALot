@@ -1,0 +1,230 @@
+import { Injectable, inject } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+import { supabase } from '../supabase/supabase.client';
+import { AuthService } from '../auth/auth.service';
+import {
+  Package,
+  CreatePackageDto,
+  UpdatePackageDto
+} from '../models/package.model';
+import { environment } from '../../../environments/environment';
+
+/**
+ * Response from create-package Edge Function
+ */
+interface CreatePackageResponse {
+  package: Package;
+  email_sent: boolean;
+  email_error: string | null;
+}
+
+/**
+ * PackageService handles package CRUD operations.
+ *
+ * Key features:
+ * - Create packages (warehouse/admin only)
+ * - List and filter packages
+ * - Update package status
+ */
+@Injectable({
+  providedIn: 'root'
+})
+export class PackageService {
+  private authService = inject(AuthService);
+
+  private packagesSubject = new BehaviorSubject<Package[]>([]);
+  private loadingSubject = new BehaviorSubject<boolean>(false);
+  private errorSubject = new BehaviorSubject<string | null>(null);
+
+  /** List of packages */
+  readonly packages$ = this.packagesSubject.asObservable();
+
+  /** Loading state */
+  readonly loading$ = this.loadingSubject.asObservable();
+
+  /** Error state */
+  readonly error$ = this.errorSubject.asObservable();
+
+  /**
+   * Create a new package via Edge Function.
+   * Handles email notification and audit logging.
+   */
+  async createPackage(dto: CreatePackageDto): Promise<{
+    package: Package | null;
+    emailSent: boolean;
+    error: string | null;
+  }> {
+    this.loadingSubject.next(true);
+    this.errorSubject.next(null);
+
+    try {
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) {
+        return { package: null, emailSent: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(
+        `${environment.supabase.url}/functions/v1/create-package`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify(dto)
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.error || data.details || 'Failed to create package';
+        this.errorSubject.next(errorMessage);
+        return { package: null, emailSent: false, error: errorMessage };
+      }
+
+      const result = data as CreatePackageResponse;
+
+      // Add to local list
+      const currentPackages = this.packagesSubject.value;
+      this.packagesSubject.next([result.package, ...currentPackages]);
+
+      return {
+        package: result.package,
+        emailSent: result.email_sent,
+        error: result.email_error
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create package';
+      this.errorSubject.next(errorMessage);
+      return { package: null, emailSent: false, error: errorMessage };
+    } finally {
+      this.loadingSubject.next(false);
+    }
+  }
+
+  /**
+   * Load all packages (with optional filters).
+   */
+  async loadPackages(filters?: {
+    status?: string;
+    search?: string;
+    limit?: number;
+  }): Promise<void> {
+    this.loadingSubject.next(true);
+    this.errorSubject.next(null);
+
+    let query = supabase
+      .from('packages')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
+    }
+
+    if (filters?.search) {
+      query = query.or(`reference.ilike.%${filters.search}%,receiver_email.ilike.%${filters.search}%`);
+    }
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+
+    const { data, error } = await query;
+
+    this.loadingSubject.next(false);
+
+    if (error) {
+      this.errorSubject.next(error.message);
+      return;
+    }
+
+    this.packagesSubject.next(data || []);
+  }
+
+  /**
+   * Get a single package by ID.
+   */
+  async getPackage(id: string): Promise<{ package: Package | null; error: string | null }> {
+    const { data, error } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return { package: null, error: error.message };
+    }
+
+    return { package: data, error: null };
+  }
+
+  /**
+   * Get a package by reference.
+   */
+  async getPackageByReference(reference: string): Promise<{ package: Package | null; error: string | null }> {
+    const { data, error } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('reference', reference.toUpperCase())
+      .single();
+
+    if (error) {
+      return { package: null, error: error.message };
+    }
+
+    return { package: data, error: null };
+  }
+
+  /**
+   * Update a package.
+   */
+  async updatePackage(id: string, dto: UpdatePackageDto): Promise<{
+    package: Package | null;
+    error: string | null;
+  }> {
+    this.loadingSubject.next(true);
+
+    const { data, error } = await supabase
+      .from('packages')
+      .update(dto)
+      .eq('id', id)
+      .select()
+      .single();
+
+    this.loadingSubject.next(false);
+
+    if (error) {
+      return { package: null, error: error.message };
+    }
+
+    // Update local list
+    const currentPackages = this.packagesSubject.value;
+    const updatedPackages = currentPackages.map(p =>
+      p.id === id ? data : p
+    );
+    this.packagesSubject.next(updatedPackages);
+
+    return { package: data, error: null };
+  }
+
+  /**
+   * Get recent packages created by current user.
+   */
+  async getMyRecentPackages(limit = 5): Promise<Package[]> {
+    const userId = this.authService.getCurrentUserId();
+    if (!userId) return [];
+
+    const { data } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('created_by', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    return data || [];
+  }
+}

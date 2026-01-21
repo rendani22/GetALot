@@ -1,0 +1,137 @@
+<div class="package-detail-container">
+  <header class="page-header">
+    <button class="back-btn" (click)="goBack()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </svg>
+    </button>
+    <h1>Package Details</h1>
+  </header>
+
+  <main class="content">
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading package...</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @else if (errorMessage()) {
+      <div class="error-state">
+        <div class="error-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+        </div>
+        <p>{{ errorMessage() }}</p>
+        <button class="btn btn-secondary" (click)="goBack()">
+          Go Back
+        </button>
+      </div>
+    }
+
+    <!-- Package Details -->
+    @else if (package()) {
+      <!-- Status Banner -->
+      <div class="status-banner" [style.background-color]="getStatusColor(package()!.status)">
+        <span class="status-label">{{ getStatusLabel(package()!.status) }}</span>
+      </div>
+
+      <!-- Reference Card -->
+      <div class="card reference-card">
+        <div class="reference-display">
+          <span class="label">Reference Number</span>
+          <span class="reference">{{ package()!.reference }}</span>
+        </div>
+      </div>
+
+      <!-- Package Info Card -->
+      <div class="card info-card">
+        <h3>Package Information</h3>
+
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+              Receiver Email
+            </span>
+            <span class="info-value">{{ package()!.receiver_email }}</span>
+          </div>
+
+          @if (package()!.notes) {
+            <div class="info-row notes-row">
+              <span class="info-label">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                Notes
+              </span>
+              <span class="info-value notes">{{ package()!.notes }}</span>
+            </div>
+          }
+
+          <div class="info-row">
+            <span class="info-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Created
+            </span>
+            <span class="info-value">{{ formatDate(package()!.created_at) }}</span>
+          </div>
+
+          @if (package()!.collected_at) {
+            <div class="info-row">
+              <span class="info-label">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Collected
+              </span>
+              <span class="info-value">{{ formatDate(package()!.collected_at) }}</span>
+            </div>
+          }
+
+          <div class="info-row">
+            <span class="info-label">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Last Updated
+            </span>
+            <span class="info-value">{{ formatDate(package()!.updated_at) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code Card -->
+      <div class="card qr-card">
+        <h3>Package QR Code</h3>
+        <p class="qr-description">Use this QR code for package identification and collection.</p>
+
+        <app-qr-code
+          [data]="package()!.reference"
+          [referenceText]="package()!.reference"
+          [packageId]="package()!.id"
+          [filename]="'package-' + package()!.reference"
+        />
+      </div>
+
+      <!-- Actions -->
+      @if (package()!.status !== 'collected' && package()!.status !== 'returned') {
+        <div class="actions-card">
+          <button class="btn btn-primary btn-block" (click)="scanForCollection()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+            </svg>
+            Go to Scanner
+          </button>
+        </div>
+      }
+    }
+  </main>
+</div>
