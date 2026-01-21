@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PackageService } from '../../../core/services/package.service';
 import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
 import { QrCodeComponent } from '../../../shared/components/qr-code/qr-code.component';
+import { AuditTimelineComponent } from '../../../shared/components/audit-timeline/audit-timeline.component';
 
 /**
  * PackageDetailComponent - View full package details.
@@ -13,11 +14,12 @@ import { QrCodeComponent } from '../../../shared/components/qr-code/qr-code.comp
  * - Show QR code for printing
  * - View status history
  * - Actions based on status
+ * - Audit trail timeline
  */
 @Component({
   selector: 'app-package-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, QrCodeComponent],
+  imports: [CommonModule, RouterLink, QrCodeComponent, AuditTimelineComponent],
   templateUrl: './package-detail.component.html',
   styleUrls: ['./package-detail.component.scss']
 })

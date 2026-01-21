@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import QRCode from 'qrcode';
+import { jsPDF } from 'jspdf';
 import { supabase } from '../../../core/supabase/supabase.client';
 import { environment } from '../../../../environments/environment';
 
@@ -40,6 +41,12 @@ import { environment } from '../../../../environments/environment';
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
               Download PNG
+            </button>
+            <button class="btn btn-outline" (click)="downloadPDF()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              Download PDF
             </button>
             <button class="btn btn-secondary" (click)="printQR()">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
@@ -158,6 +165,16 @@ import { environment } from '../../../../environments/environment';
       }
     }
 
+    .btn-outline {
+      background: transparent;
+      color: #3b82f6;
+      border: 1.5px solid #3b82f6;
+
+      &:hover {
+        background: #eff6ff;
+      }
+    }
+
     .qr-error {
       display: flex;
       flex-direction: column;
@@ -254,6 +271,54 @@ export class QrCodeComponent implements OnChanges {
     }
   }
 
+  async downloadPDF(): Promise<void> {
+    const dataUrl = this.qrDataUrl();
+    if (!dataUrl) return;
+
+    const referenceText = this.referenceText || this.data;
+
+    // Create PDF document (A4 size)
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+
+    // Add title
+    pdf.setFontSize(24);
+    pdf.setTextColor(30, 58, 95); // #1e3a5f
+    pdf.text('Package QR Code', pageWidth / 2, 40, { align: 'center' });
+
+    // Add QR code image centered on page
+    const qrSize = 80; // mm
+    const qrX = (pageWidth - qrSize) / 2;
+    pdf.addImage(dataUrl, 'PNG', qrX, 60, qrSize, qrSize);
+
+    // Add reference text
+    pdf.setFontSize(20);
+    pdf.setFont('courier', 'bold');
+    pdf.text(referenceText, pageWidth / 2, 160, { align: 'center' });
+
+    // Add instructions
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(107, 114, 128); // #6b7280
+    pdf.text('Scan this QR code at the collection point', pageWidth / 2, 180, { align: 'center' });
+    pdf.text(`Generated: ${new Date().toLocaleDateString('en-ZA')}`, pageWidth / 2, 190, { align: 'center' });
+
+    // Download PDF
+    pdf.save(`${this.filename}.pdf`);
+
+    this.downloaded.emit();
+
+    // Log download audit
+    if (this.packageId) {
+      await this.logAudit('QR_DOWNLOADED_PDF');
+    }
+  }
+
   async printQR(): Promise<void> {
     const dataUrl = this.qrDataUrl();
     if (!dataUrl) return;
@@ -271,7 +336,7 @@ export class QrCodeComponent implements OnChanges {
 
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="">
         <head>
           <title>Print QR Code - ${this.referenceText || this.data}</title>
           <style>

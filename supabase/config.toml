@@ -1,0 +1,18 @@
+# Supabase Configuration
+# See: https://supabase.com/docs/guides/functions/auth
+
+[api]
+enabled = true
+
+# Edge Functions configuration
+# Setting verify_jwt = false allows the function to handle its own authentication
+# The function code still validates the user JWT, but this bypasses the gateway check
+
+[functions.create-package]
+verify_jwt = false
+
+[functions.create-staff]
+verify_jwt = false
+
+[functions.log-audit]
+verify_jwt = false

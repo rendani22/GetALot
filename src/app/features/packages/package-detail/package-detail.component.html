@@ -121,6 +121,15 @@
         />
       </div>
 
+      <!-- Audit Timeline Card -->
+      <div class="card audit-card">
+        <app-audit-timeline
+          [entityId]="package()!.id"
+          entityType="package"
+          [limit]="10"
+        />
+      </div>
+
       <!-- Actions -->
       @if (package()!.status !== 'collected' && package()!.status !== 'returned') {
         <div class="actions-card">

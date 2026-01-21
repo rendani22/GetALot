@@ -21,6 +21,12 @@ export interface Package {
   updated_at: string;
   collected_at: string | null;
   collected_by: string | null;
+  // POD signature fields
+  signature_url: string | null;
+  signature_path: string | null;
+  signed_at: string | null;
+  // POD reference
+  pod_id: string | null;
 }
 
 /**

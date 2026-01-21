@@ -149,6 +149,9 @@ serve(async (req) => {
     try {
       // Use Resend API if configured, otherwise log for manual follow-up
       const resendApiKey = Deno.env.get('RESEND_API_KEY')
+      const collectionLocation = Deno.env.get('COLLECTION_LOCATION') || 'the designated collection point'
+      const collectionHours = Deno.env.get('COLLECTION_HOURS') || 'Monday to Friday, 8:00 AM - 5:00 PM'
+      const supportEmail = Deno.env.get('SUPPORT_EMAIL') || 'support@example.com'
 
       if (resendApiKey) {
         const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -162,20 +165,76 @@ serve(async (req) => {
             to: [receiver_email],
             subject: `Package Ready for Collection - ${newPackage.reference}`,
             html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1e3a5f;">Package Notification</h2>
-                <p>Hello,</p>
-                <p>A package has been registered for you and is ready for collection.</p>
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <p style="margin: 0 0 10px 0;"><strong>Reference Number:</strong></p>
-                  <p style="font-size: 24px; font-weight: bold; color: #1e3a5f; margin: 0;">${newPackage.reference}</p>
-                  ${notes ? `<p style="margin: 15px 0 0 0;"><strong>Notes:</strong> ${notes}</p>` : ''}
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              </head>
+              <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #374151;">
+                <div style="background: #1e3a5f; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 24px;">📦 Package Ready for Collection</h1>
                 </div>
-                <p>Please present this reference number when collecting your package.</p>
-                <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                  This is an automated message from the POD System.
-                </p>
-              </div>
+                
+                <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+                  <p style="margin: 0 0 20px 0;">Hello,</p>
+                  <p style="margin: 0 0 20px 0;">Great news! A package has been registered for you and is ready for collection.</p>
+                  
+                  <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Your Package Reference</p>
+                    <p style="font-size: 28px; font-weight: bold; color: #1e3a5f; margin: 0; font-family: monospace;">${newPackage.reference}</p>
+                  </div>
+                  
+                  ${notes ? `
+                  <div style="background: #fefce8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0; font-size: 14px;"><strong>📝 Notes:</strong> ${notes}</p>
+                  </div>
+                  ` : ''}
+                  
+                  <h2 style="color: #1e3a5f; font-size: 18px; margin: 30px 0 15px 0;">📍 Collection Instructions</h2>
+                  
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                        <strong>Location:</strong>
+                      </td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                        ${collectionLocation}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                        <strong>Hours:</strong>
+                      </td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                        ${collectionHours}
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 25px 0;">
+                    <p style="margin: 0; font-size: 14px;"><strong>What to bring:</strong></p>
+                    <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px;">
+                      <li>Your package reference number (shown above)</li>
+                      <li>Valid photo ID for verification</li>
+                    </ul>
+                  </div>
+                  
+                  <p style="margin: 25px 0 0 0; font-size: 14px; color: #6b7280;">
+                    When you arrive, staff will scan your package and ask for your digital signature to confirm receipt.
+                  </p>
+                </div>
+                
+                <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                    Questions? Contact us at <a href="mailto:${supportEmail}" style="color: #3b82f6;">${supportEmail}</a>
+                  </p>
+                  <p style="margin: 0; font-size: 11px; color: #9ca3af;">
+                    This is an automated message from the POD System. Please do not reply directly to this email.
+                  </p>
+                </div>
+              </body>
+              </html>
             `
           })
         })
@@ -189,6 +248,22 @@ serve(async (req) => {
             .eq('id', newPackage.id)
 
           newPackage.status = 'notified'
+
+          // Log RECEIVER_NOTIFIED audit event
+          await adminClient
+            .from('audit_logs')
+            .insert({
+              action: 'RECEIVER_NOTIFIED',
+              entity_type: 'package',
+              entity_id: newPackage.id,
+              performed_by: callingUser.id,
+              metadata: {
+                reference: newPackage.reference,
+                receiver_email: newPackage.receiver_email,
+                notification_type: 'email',
+                notification_status: 'sent'
+              }
+            })
         } else {
           const errorBody = await emailResponse.text()
           emailError = `Email API error: ${errorBody}`
@@ -198,8 +273,9 @@ serve(async (req) => {
         emailError = 'Email service not configured (RESEND_API_KEY not set)'
         console.log('Email notification skipped:', emailError)
       }
-    } catch (e) {
-      emailError = `Email exception: ${e.message}`
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      emailError = `Email exception: ${errorMessage}`
       console.error('Email send exception:', e)
     }
 
@@ -245,12 +321,13 @@ serve(async (req) => {
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return new Response(
       JSON.stringify({
         error: 'Internal server error',
-        details: error.message
+        details: errorMessage
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

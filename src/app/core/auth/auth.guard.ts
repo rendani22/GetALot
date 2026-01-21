@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
-import { firstValueFrom, filter, map, take } from 'rxjs';
+import { firstValueFrom, filter, take } from 'rxjs';
 
 /**
  * Auth guard to protect routes from unauthenticated access.

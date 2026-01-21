@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, from, map, tap, catchError, of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { supabase } from '../supabase/supabase.client';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '../auth';
 import {
   StaffProfile,
   StaffRole,
@@ -66,13 +66,6 @@ export class StaffService {
   }
 
   /**
-   * Get current user's role.
-   */
-  getCurrentRole(): StaffRole | null {
-    return this.currentProfileSubject.value?.role ?? null;
-  }
-
-  /**
    * Load the current authenticated user's staff profile.
    */
   async loadCurrentProfile(): Promise<StaffProfile | null> {
@@ -125,24 +118,6 @@ export class StaffService {
 
     this.staffListSubject.next(data as StaffProfile[]);
     return data as StaffProfile[];
-  }
-
-  /**
-   * Get a specific staff profile by ID.
-   */
-  async getStaffById(id: string): Promise<StaffProfile | null> {
-    const { data, error } = await supabase
-      .from('staff_profiles')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      this.errorSubject.next(error.message);
-      return null;
-    }
-
-    return data as StaffProfile;
   }
 
   /**
@@ -231,24 +206,5 @@ export class StaffService {
   async reactivateStaff(id: string): Promise<{ success: boolean; error: string | null }> {
     const result = await this.updateStaff(id, { is_active: true });
     return { success: result.profile !== null, error: result.error };
-  }
-
-  /**
-   * Get staff profiles by role.
-   */
-  async getStaffByRole(role: StaffRole): Promise<StaffProfile[]> {
-    const { data, error } = await supabase
-      .from('staff_profiles')
-      .select('*')
-      .eq('role', role)
-      .eq('is_active', true)
-      .order('full_name');
-
-    if (error) {
-      this.errorSubject.next(error.message);
-      return [];
-    }
-
-    return data as StaffProfile[];
   }
 }
