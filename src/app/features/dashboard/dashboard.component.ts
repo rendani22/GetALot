@@ -45,7 +45,7 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
           }
         </div>
 
-        <!-- Warehouse Quick Actions (warehouse and admin) -->
+        <!-- Quick Actions for Warehouse and Admin -->
         @if (staffService.hasRole('warehouse') || staffService.isAdmin()) {
           <div class="section">
             <h3>Warehouse</h3>
@@ -79,6 +79,24 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
           </div>
         }
 
+        <!-- Quick Actions for Driver (scan only) -->
+        @if (staffService.hasRole('driver') && !staffService.isAdmin()) {
+          <div class="section">
+            <h3>Collection</h3>
+            <div class="action-grid">
+              <a routerLink="/collection/scan" class="action-card">
+                <div class="action-icon collection">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                  </svg>
+                </div>
+                <span>Scan Package</span>
+              </a>
+            </div>
+          </div>
+        }
+
         <!-- Admin Quick Actions -->
         @if (staffService.isAdmin()) {
           <div class="section">
@@ -91,6 +109,14 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
                   </svg>
                 </div>
                 <span>Manage Staff</span>
+              </a>
+              <a routerLink="/admin/receivers" class="action-card">
+                <div class="action-icon receivers">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                  </svg>
+                </div>
+                <span>Manage Receivers</span>
               </a>
               <a routerLink="/admin/audit-trail" class="action-card">
                 <div class="action-icon audit">
@@ -123,6 +149,9 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
       padding: 1rem 1.5rem;
       background: #1e3a5f;
       color: white;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
 
       h1 {
         margin: 0;
@@ -273,6 +302,11 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
         &.admin {
           background: #ede9fe;
           color: #7c3aed;
+        }
+
+        &.receivers {
+          background: #fce7f3;
+          color: #db2777;
         }
 
         &.audit {

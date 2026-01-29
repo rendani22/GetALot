@@ -1,16 +1,18 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { PackageService } from '../../../core/services/package.service';
+import { ReceiverService } from '../../../core/services/receiver.service';
 import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
+import { ReceiverProfile } from '../../../core/models/receiver-profile.model';
 import { QrCodeComponent } from '../../../shared/components/qr-code/qr-code.component';
 
 /**
  * CreatePackageComponent - Form for warehouse staff to register new packages.
  *
  * Features:
- * - Input receiver email (required)
+ * - Select receiver from active receivers list
  * - Optional package notes
  * - Auto-generates unique reference
  * - Generates QR code for package
@@ -24,10 +26,11 @@ import { QrCodeComponent } from '../../../shared/components/qr-code/qr-code.comp
   templateUrl: './create-package.component.html',
   styleUrls: ['./create-package.component.scss']
 })
-export class CreatePackageComponent {
+export class CreatePackageComponent implements OnInit {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private packageService = inject(PackageService);
+  private receiverService = inject(ReceiverService);
 
   // UI State
   isSubmitting = signal(false);
@@ -37,6 +40,10 @@ export class CreatePackageComponent {
   emailSent = signal<boolean>(false);
   emailWarning = signal<string | null>(null);
 
+  // Receivers
+  receivers = signal<ReceiverProfile[]>([]);
+  loadingReceivers = signal(true);
+
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
 
@@ -45,9 +52,31 @@ export class CreatePackageComponent {
 
   constructor() {
     this.packageForm = this.fb.group({
-      receiver_email: ['', [Validators.required, Validators.email]],
+      receiver_id: ['', [Validators.required]],
       notes: ['']
     });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.loadReceivers();
+  }
+
+  private async loadReceivers(): Promise<void> {
+    this.loadingReceivers.set(true);
+    await this.receiverService.loadAllReceivers();
+
+    // Subscribe to receivers and filter active ones
+    this.receiverService.receivers$.subscribe(allReceivers => {
+      const activeReceivers = allReceivers.filter(r => r.is_active);
+      this.receivers.set(activeReceivers);
+      this.loadingReceivers.set(false);
+    });
+  }
+
+  getSelectedReceiverEmail(): string {
+    const receiverId = this.packageForm.get('receiver_id')?.value;
+    const receiver = this.receivers().find(r => r.id === receiverId);
+    return receiver?.email || '';
   }
 
   async onSubmit(): Promise<void> {
@@ -64,10 +93,18 @@ export class CreatePackageComponent {
     this.createdPackage.set(null);
     this.emailWarning.set(null);
 
-    const { receiver_email, notes } = this.packageForm.value;
+    const { receiver_id, notes } = this.packageForm.value;
+
+    // Get the receiver's email from the selected receiver
+    const receiver = this.receivers().find(r => r.id === receiver_id);
+    if (!receiver) {
+      this.errorMessage.set('Please select a valid receiver');
+      this.isSubmitting.set(false);
+      return;
+    }
 
     const result = await this.packageService.createPackage({
-      receiver_email: receiver_email.trim(),
+      receiver_email: receiver.email,
       notes: notes?.trim() || undefined
     });
 

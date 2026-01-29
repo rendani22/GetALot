@@ -104,22 +104,35 @@
           }
 
           <div class="form-group">
-            <label for="receiver_email">Receiver Email *</label>
-            <input
-              type="email"
-              id="receiver_email"
-              formControlName="receiver_email"
-              placeholder="Enter receiver's email address"
-              [class.invalid]="packageForm.get('receiver_email')?.invalid && packageForm.get('receiver_email')?.touched"
-            />
-            @if (packageForm.get('receiver_email')?.invalid && packageForm.get('receiver_email')?.touched) {
-              <span class="field-error">
-                @if (packageForm.get('receiver_email')?.hasError('required')) {
-                  Email is required
-                } @else if (packageForm.get('receiver_email')?.hasError('email')) {
-                  Please enter a valid email address
+            <label for="receiver_id">Select Receiver *</label>
+            @if (loadingReceivers()) {
+              <div class="loading-receivers">
+                <span class="spinner-small"></span>
+                Loading receivers...
+              </div>
+            } @else if (receivers().length === 0) {
+              <div class="no-receivers">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span>No active receivers found. Please add receivers in the admin panel.</span>
+              </div>
+            } @else {
+              <select
+                id="receiver_id"
+                formControlName="receiver_id"
+                [class.invalid]="packageForm.get('receiver_id')?.invalid && packageForm.get('receiver_id')?.touched"
+              >
+                <option value="">-- Select a receiver --</option>
+                @for (receiver of receivers(); track receiver.id) {
+                  <option [value]="receiver.id">
+                    {{ receiver.name }} {{ receiver.surname }} ({{ receiver.employee_number }}) - {{ receiver.email }}
+                  </option>
                 }
-              </span>
+              </select>
+              @if (packageForm.get('receiver_id')?.invalid && packageForm.get('receiver_id')?.touched) {
+                <span class="field-error">Please select a receiver</span>
+              }
             }
           </div>
 

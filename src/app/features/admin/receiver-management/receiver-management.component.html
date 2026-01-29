@@ -1,0 +1,334 @@
+<div class="receiver-management">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
+        </svg>
+      </button>
+      <h1>Receiver Management</h1>
+    </div>
+    <button class="add-btn" (click)="openCreateModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+      </svg>
+      Add Receiver
+    </button>
+  </header>
+
+  <!-- Success/Error Messages -->
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+      </svg>
+      {{ successMessage() }}
+    </div>
+  }
+
+  @if (receiverService.error$ | async; as error) {
+    <div class="alert alert-error">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+      </svg>
+      {{ error }}
+    </div>
+  }
+
+  <!-- Receiver List -->
+  <div class="receiver-list">
+    @if (receiverService.loading$ | async) {
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Loading receivers...</span>
+      </div>
+    } @else {
+      @if (receiverService.receivers$ | async; as receivers) {
+        @if (receivers.length === 0) {
+          <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            <p>No receivers yet</p>
+            <button class="add-btn" (click)="openCreateModal()">Add First Receiver</button>
+          </div>
+        } @else {
+          @for (receiver of receivers; track receiver.id) {
+            <div class="receiver-card" [class.inactive]="!receiver.is_active">
+              <div class="receiver-info">
+                <div class="avatar">
+                  {{ getInitials(receiver) }}
+                </div>
+                <div class="details">
+                  <h3>{{ receiver.name }} {{ receiver.surname }}</h3>
+                  <p class="employee-number">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M6 3.75A2.75 2.75 0 018.75 1h2.5A2.75 2.75 0 0114 3.75v.443c.572.055 1.14.122 1.706.2C17.053 4.582 18 5.75 18 7.07v3.469c0 1.126-.694 2.191-1.83 2.54-1.952.599-4.024.921-6.17.921s-4.219-.322-6.17-.921C2.694 12.73 2 11.665 2 10.539V7.07c0-1.321.947-2.489 2.294-2.676A41.047 41.047 0 016 4.193V3.75zm6.5 0v.325a41.622 41.622 0 00-5 0V3.75c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25zM10 10a1 1 0 00-1 1v.01a1 1 0 001 1h.01a1 1 0 001-1V11a1 1 0 00-1-1H10z" clip-rule="evenodd" />
+                      <path d="M3 15.055v-.684c.126.053.255.1.39.142 2.092.642 4.313.987 6.61.987 2.297 0 4.518-.345 6.61-.987.135-.041.264-.089.39-.142v.684c0 1.347-.985 2.53-2.363 2.686a41.454 41.454 0 01-9.274 0C3.985 17.585 3 16.402 3 15.055z" />
+                    </svg>
+                    {{ receiver.employee_number }}
+                  </p>
+                  <p class="email">{{ receiver.email }}</p>
+                  @if (receiver.phone) {
+                    <p class="phone">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M2 3.5A1.5 1.5 0 013.5 2h1.148a1.5 1.5 0 011.465 1.175l.716 3.223a1.5 1.5 0 01-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 006.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 011.767-1.052l3.223.716A1.5 1.5 0 0118 15.352V16.5a1.5 1.5 0 01-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 012.43 8.326 13.019 13.019 0 012 5V3.5z" clip-rule="evenodd" />
+                      </svg>
+                      {{ receiver.phone }}
+                    </p>
+                  }
+                </div>
+              </div>
+              <div class="receiver-meta">
+                <div class="dates">
+                  <span class="date-label">Created:</span>
+                  <span class="date-value">{{ formatDate(receiver.created_at) }}</span>
+                </div>
+                @if (!receiver.is_active) {
+                  <span class="status-badge inactive">Inactive</span>
+                }
+              </div>
+              <div class="receiver-actions">
+                <button class="action-btn edit" (click)="openEditModal(receiver)" title="Edit">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  class="action-btn"
+                  [class.activate]="!receiver.is_active"
+                  [class.deactivate]="receiver.is_active"
+                  (click)="toggleActive(receiver)"
+                  [title]="receiver.is_active ? 'Deactivate' : 'Activate'"
+                >
+                  @if (receiver.is_active) {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  } @else {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                    </svg>
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        }
+      }
+    }
+  </div>
+
+  <!-- Create Modal -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay" (click)="closeCreateModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Add Receiver</h2>
+          <button class="close-btn" (click)="closeCreateModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="modal-error">{{ errorMessage() }}</div>
+        }
+
+        <form [formGroup]="createForm" (ngSubmit)="createReceiver()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="create-name">Name *</label>
+              <input
+                id="create-name"
+                type="text"
+                formControlName="name"
+                placeholder="Enter first name"
+                [class.invalid]="isFieldInvalid(createForm, 'name')"
+              />
+              @if (isFieldInvalid(createForm, 'name')) {
+                <span class="error">Name is required (min 2 characters)</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="create-surname">Surname *</label>
+              <input
+                id="create-surname"
+                type="text"
+                formControlName="surname"
+                placeholder="Enter surname"
+                [class.invalid]="isFieldInvalid(createForm, 'surname')"
+              />
+              @if (isFieldInvalid(createForm, 'surname')) {
+                <span class="error">Surname is required (min 2 characters)</span>
+              }
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="create-employee-number">Employee Number *</label>
+            <input
+              id="create-employee-number"
+              type="text"
+              formControlName="employee_number"
+              placeholder="Enter employee number"
+              [class.invalid]="isFieldInvalid(createForm, 'employee_number')"
+            />
+            @if (isFieldInvalid(createForm, 'employee_number')) {
+              <span class="error">Employee number is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="create-email">Email Address *</label>
+            <input
+              id="create-email"
+              type="email"
+              formControlName="email"
+              placeholder="Enter email address"
+              [class.invalid]="isFieldInvalid(createForm, 'email')"
+            />
+            @if (isFieldInvalid(createForm, 'email')) {
+              <span class="error">Valid email is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="create-phone">Phone Number (Optional)</label>
+            <input
+              id="create-phone"
+              type="tel"
+              formControlName="phone"
+              placeholder="Enter phone number"
+            />
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" (click)="closeCreateModal()">Cancel</button>
+            <button type="submit" class="btn-submit" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="spinner-small"></span>
+                Creating...
+              } @else {
+                Create Receiver
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Modal -->
+  @if (showEditModal()) {
+    <div class="modal-overlay" (click)="closeEditModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Edit Receiver</h2>
+          <button class="close-btn" (click)="closeEditModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="modal-error">{{ errorMessage() }}</div>
+        }
+
+        <form [formGroup]="editForm" (ngSubmit)="updateReceiver()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-name">Name *</label>
+              <input
+                id="edit-name"
+                type="text"
+                formControlName="name"
+                placeholder="Enter first name"
+                [class.invalid]="isFieldInvalid(editForm, 'name')"
+              />
+              @if (isFieldInvalid(editForm, 'name')) {
+                <span class="error">Name is required (min 2 characters)</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="edit-surname">Surname *</label>
+              <input
+                id="edit-surname"
+                type="text"
+                formControlName="surname"
+                placeholder="Enter surname"
+                [class.invalid]="isFieldInvalid(editForm, 'surname')"
+              />
+              @if (isFieldInvalid(editForm, 'surname')) {
+                <span class="error">Surname is required (min 2 characters)</span>
+              }
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-employee-number">Employee Number *</label>
+            <input
+              id="edit-employee-number"
+              type="text"
+              formControlName="employee_number"
+              placeholder="Enter employee number"
+              [class.invalid]="isFieldInvalid(editForm, 'employee_number')"
+            />
+            @if (isFieldInvalid(editForm, 'employee_number')) {
+              <span class="error">Employee number is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="edit-email">Email Address *</label>
+            <input
+              id="edit-email"
+              type="email"
+              formControlName="email"
+              placeholder="Enter email address"
+              [class.invalid]="isFieldInvalid(editForm, 'email')"
+            />
+            @if (isFieldInvalid(editForm, 'email')) {
+              <span class="error">Valid email is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="edit-phone">Phone Number (Optional)</label>
+            <input
+              id="edit-phone"
+              type="tel"
+              formControlName="phone"
+              placeholder="Enter phone number"
+            />
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="is_active" />
+              <span>Active</span>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" (click)="closeEditModal()">Cancel</button>
+            <button type="submit" class="btn-submit" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="spinner-small"></span>
+                Updating...
+              } @else {
+                Update Receiver
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

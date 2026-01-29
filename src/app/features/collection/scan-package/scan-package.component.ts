@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { PackageService } from '../../../core/services/package.service';
+import { StaffService } from '../../../core/services/staff.service';
 import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
 import { QrScannerComponent } from '../../../shared/components/qr-scanner/qr-scanner.component';
 import { supabase } from '../../../core/supabase/supabase.client';
@@ -27,6 +28,7 @@ import { environment } from '../../../../environments/environment';
 export class ScanPackageComponent {
   private router = inject(Router);
   private packageService = inject(PackageService);
+  protected staffService = inject(StaffService);
 
   // UI State
   isLoading = signal(false);

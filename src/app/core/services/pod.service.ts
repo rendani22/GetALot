@@ -1,10 +1,8 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { jsPDF } from 'jspdf';
 import { supabase } from '../supabase/supabase.client';
-import { AuthService } from '../auth/auth.service';
-import { StaffService } from './staff.service';
-import { Pod, CreatePodDto, CompletePodResponse } from '../models/pod.model';
+import { Pod } from '../models/pod.model';
 import { Package } from '../models/package.model';
 import { environment } from '../../../environments/environment';
 
@@ -12,18 +10,15 @@ import { environment } from '../../../environments/environment';
  * PodService handles POD (Proof of Delivery) operations.
  *
  * Key features:
- * - Create and complete POD records
+ * - Create and complete POD records via Edge Functions
  * - Generate POD PDF documents
  * - Lock POD records (make immutable)
- * - Audit logging for all POD actions
+ * - All actions go through Edge Functions for audit compliance
  */
 @Injectable({
   providedIn: 'root'
 })
 export class PodService {
-  private authService = inject(AuthService);
-  private staffService = inject(StaffService);
-
   private loadingSubject = new BehaviorSubject<boolean>(false);
   private errorSubject = new BehaviorSubject<string | null>(null);
 
@@ -34,7 +29,8 @@ export class PodService {
   readonly error$ = this.errorSubject.asObservable();
 
   /**
-   * Complete POD process: create record, generate PDF, lock record
+   * Complete POD process: create record via Edge Function, generate PDF, lock record
+   * All operations go through controlled Edge Functions for audit compliance.
    */
   async completePod(
     pkg: Package,
@@ -46,44 +42,40 @@ export class PodService {
     this.errorSubject.next(null);
 
     try {
-      // Get current staff profile
-      const staffProfile = await this.staffService.loadCurrentProfile();
-      if (!staffProfile) {
-        return { pod: null, pdfUrl: null, error: 'Staff profile not found' };
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) {
+        return { pod: null, pdfUrl: null, error: 'Not authenticated' };
       }
 
-      // Step 1: Create POD record
-      const { data: pod, error: createError } = await supabase
-        .from('pods')
-        .insert({
-          package_id: pkg.id,
-          package_reference: pkg.reference,
-          receiver_email: pkg.receiver_email,
-          staff_id: staffProfile.id,
-          staff_name: staffProfile.full_name,
-          staff_email: staffProfile.email,
-          signature_url: signatureUrl,
-          signature_path: signaturePath,
-          signed_at: signedAt,
-          completed_at: new Date().toISOString(),
-          notes: pkg.notes
-        })
-        .select()
-        .single();
+      // Step 1: Create POD record via Edge Function
+      const createResponse = await fetch(
+        `${environment.supabase.url}/functions/v1/complete-pod`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify({
+            package_id: pkg.id,
+            signature_url: signatureUrl,
+            signature_path: signaturePath,
+            signed_at: signedAt,
+            notes: pkg.notes
+          })
+        }
+      );
 
-      if (createError) {
-        this.errorSubject.next(createError.message);
-        return { pod: null, pdfUrl: null, error: createError.message };
+      const createData = await createResponse.json();
+
+      if (!createResponse.ok) {
+        const errorMessage = createData.error || createData.details || 'Failed to create POD';
+        this.errorSubject.next(errorMessage);
+        return { pod: null, pdfUrl: null, error: errorMessage };
       }
 
-      // Log POD_COMPLETED audit
-      await this.logAudit('POD_COMPLETED', pkg.id, {
-        pod_id: pod.id,
-        pod_reference: pod.pod_reference,
-        package_reference: pkg.reference,
-        staff_id: staffProfile.id,
-        staff_name: staffProfile.full_name
-      });
+      const pod = createData.pod as Pod;
 
       // Step 2: Generate and upload PDF
       const pdfResult = await this.generateAndUploadPdf(pod, pkg, signatureUrl);
@@ -93,40 +85,35 @@ export class PodService {
         // Continue even if PDF fails - we can regenerate later
       }
 
-      // Step 3: Update POD with PDF info and lock it
-      const { data: updatedPod, error: updateError } = await supabase
-        .from('pods')
-        .update({
-          pdf_url: pdfResult.url,
-          pdf_path: pdfResult.path,
-          pdf_generated_at: pdfResult.url ? new Date().toISOString() : null,
-          is_locked: true,
-          locked_at: new Date().toISOString()
-        })
-        .eq('id', pod.id)
-        .select()
-        .single();
+      // Step 3: Lock POD via Edge Function
+      const lockResponse = await fetch(
+        `${environment.supabase.url}/functions/v1/lock-pod`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify({
+            pod_id: pod.id,
+            pdf_url: pdfResult.url,
+            pdf_path: pdfResult.path
+          })
+        }
+      );
 
-      if (updateError) {
-        console.error('Failed to lock POD:', updateError);
-        // Return the pod even if locking fails
+      const lockData = await lockResponse.json();
+
+      if (!lockResponse.ok) {
+        console.error('Failed to lock POD:', lockData.error);
+        // Return the pod even if locking fails - it can be locked later
         return { pod, pdfUrl: pdfResult.url, error: null };
       }
 
-      // Log STATUS_LOCKED audit
-      await this.logAudit('STATUS_LOCKED', pkg.id, {
-        pod_id: updatedPod.id,
-        pod_reference: updatedPod.pod_reference,
-        locked_at: updatedPod.locked_at
-      });
+      const lockedPod = lockData.pod as Pod;
 
-      // Step 4: Update package with pod_id
-      await supabase
-        .from('packages')
-        .update({ pod_id: updatedPod.id })
-        .eq('id', pkg.id);
-
-      return { pod: updatedPod, pdfUrl: pdfResult.url, error: null };
+      return { pod: lockedPod, pdfUrl: pdfResult.url, error: null };
 
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to complete POD';

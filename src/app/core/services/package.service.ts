@@ -180,35 +180,110 @@ export class PackageService {
   }
 
   /**
-   * Update a package.
+   * Update a package via Edge Function.
+   * Enforces lock checks - locked packages cannot be modified.
    */
   async updatePackage(id: string, dto: UpdatePackageDto): Promise<{
     package: Package | null;
     error: string | null;
+    isLocked?: boolean;
   }> {
     this.loadingSubject.next(true);
+    this.errorSubject.next(null);
 
+    try {
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) {
+        return { package: null, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(
+        `${environment.supabase.url}/functions/v1/update-package`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify({
+            package_id: id,
+            ...dto
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.error || data.details || 'Failed to update package';
+        this.errorSubject.next(errorMessage);
+
+        // Check if it's a lock error
+        if (response.status === 403 && data.error === 'Package is locked') {
+          return {
+            package: null,
+            error: errorMessage,
+            isLocked: true
+          };
+        }
+
+        return { package: null, error: errorMessage };
+      }
+
+      const updatedPackage = data.package as Package;
+
+      // Update local list
+      const currentPackages = this.packagesSubject.value;
+      const updatedPackages = currentPackages.map(p =>
+        p.id === id ? updatedPackage : p
+      );
+      this.packagesSubject.next(updatedPackages);
+
+      return { package: updatedPackage, error: null };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update package';
+      this.errorSubject.next(errorMessage);
+      return { package: null, error: errorMessage };
+    } finally {
+      this.loadingSubject.next(false);
+    }
+  }
+
+  /**
+   * Check if a package has a locked POD.
+   */
+  async isPackageLocked(packageId: string): Promise<boolean> {
+    const { data } = await supabase
+      .rpc('is_pod_locked', { p_package_id: packageId });
+
+    return data === true;
+  }
+
+  /**
+   * Get the lock status details for a package.
+   */
+  async getPackageLockStatus(packageId: string): Promise<{
+    isLocked: boolean;
+    lockedAt: string | null;
+    podReference: string | null;
+    pdfUrl: string | null;
+  } | null> {
     const { data, error } = await supabase
-      .from('packages')
-      .update(dto)
-      .eq('id', id)
-      .select()
-      .single();
+      .rpc('get_pod_lock_status', { p_package_id: packageId });
 
-    this.loadingSubject.next(false);
-
-    if (error) {
-      return { package: null, error: error.message };
+    if (error || !data || data.length === 0) {
+      return null;
     }
 
-    // Update local list
-    const currentPackages = this.packagesSubject.value;
-    const updatedPackages = currentPackages.map(p =>
-      p.id === id ? data : p
-    );
-    this.packagesSubject.next(updatedPackages);
-
-    return { package: data, error: null };
+    const status = data[0];
+    return {
+      isLocked: status.is_locked,
+      lockedAt: status.locked_at,
+      podReference: status.pod_reference,
+      pdfUrl: status.pdf_url
+    };
   }
 
   /**

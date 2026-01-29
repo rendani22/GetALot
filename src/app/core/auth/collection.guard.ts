@@ -43,8 +43,8 @@ export const collectionGuard: CanActivateFn = async (route, state) => {
     profile = await staffService.loadCurrentProfile();
   }
 
-  // Check if user has collection access (warehouse or admin)
-  if (profile?.role === 'warehouse' || profile?.role === 'admin') {
+  // Check if user has collection access (warehouse, driver, or admin)
+  if (profile?.role === 'warehouse' || profile?.role === 'driver' || profile?.role === 'admin') {
     return true;
   }
 
