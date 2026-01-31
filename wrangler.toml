@@ -3,7 +3,7 @@ compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist/pod-app/browser"
 
 [build]
-command = "npm install && npm run build"
+command = "rm -rf node_modules && npm install && npm run build"
 
 [build.environment]
 NODE_VERSION = "20"
