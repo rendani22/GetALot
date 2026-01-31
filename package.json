@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build pod-app --configuration production",
+    "build": "node node_modules/@angular/cli/bin/ng.js build pod-app --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "deploy-functions": "supabase functions deploy"
