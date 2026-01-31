@@ -2,11 +2,3 @@ name = "getalot"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist/pod-app/browser"
 
-[build]
-command = "npm ci && npm run build"
-
-[build.environment]
-NODE_VERSION = "20"
-NPM_VERSION = "10"
-SKIP_BUN_INSTALL = "1"
-NPM_FLAGS = "--prefer-offline"
