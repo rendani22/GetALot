@@ -1,11 +1,13 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormArray, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { PackageService } from '../../../core/services/package.service';
 import { ReceiverService } from '../../../core/services/receiver.service';
-import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
+import { DeliveryLocationService } from '../../../core/services/delivery-location.service';
+import { Package, PackageItem, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
 import { ReceiverProfile } from '../../../core/models/receiver-profile.model';
+import { DeliveryLocation } from '../../../core/models/delivery-location.model';
 import { QrCodeComponent } from '../../../shared/components/qr-code/qr-code.component';
 
 /**
@@ -31,6 +33,7 @@ export class CreatePackageComponent implements OnInit {
   private router = inject(Router);
   private packageService = inject(PackageService);
   private receiverService = inject(ReceiverService);
+  private deliveryLocationService = inject(DeliveryLocationService);
 
   // UI State
   isSubmitting = signal(false);
@@ -44,6 +47,10 @@ export class CreatePackageComponent implements OnInit {
   receivers = signal<ReceiverProfile[]>([]);
   loadingReceivers = signal(true);
 
+  // Delivery Locations
+  deliveryLocations = signal<DeliveryLocation[]>([]);
+  loadingLocations = signal(true);
+
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
 
@@ -53,12 +60,48 @@ export class CreatePackageComponent implements OnInit {
   constructor() {
     this.packageForm = this.fb.group({
       receiver_id: ['', [Validators.required]],
-      notes: ['']
+      delivery_location_id: ['', [Validators.required]],
+      po_number: ['', [Validators.required]],
+      notes: [''],
+      items: this.fb.array([])
+    });
+    // Add one empty item row by default
+    this.addItem();
+  }
+
+  /** Get the items FormArray */
+  get items(): FormArray {
+    return this.packageForm.get('items') as FormArray;
+  }
+
+  /** Create a new item FormGroup */
+  createItemFormGroup(): FormGroup {
+    return this.fb.group({
+      quantity: [1, [Validators.required, Validators.min(1)]],
+      description: ['', [Validators.required]]
     });
   }
 
+  /** Add a new item row */
+  addItem(): void {
+    this.items.push(this.createItemFormGroup());
+  }
+
+  /** Remove an item row by index */
+  removeItem(index: number): void {
+    if (this.items.length > 1) {
+      this.items.removeAt(index);
+    } else {
+      // Reset the last item instead of removing
+      this.items.at(0).reset({ quantity: 1, description: '' });
+    }
+  }
+
   async ngOnInit(): Promise<void> {
-    await this.loadReceivers();
+    await Promise.all([
+      this.loadReceivers(),
+      this.loadDeliveryLocations()
+    ]);
   }
 
   private async loadReceivers(): Promise<void> {
@@ -71,6 +114,13 @@ export class CreatePackageComponent implements OnInit {
       this.receivers.set(activeReceivers);
       this.loadingReceivers.set(false);
     });
+  }
+
+  private async loadDeliveryLocations(): Promise<void> {
+    this.loadingLocations.set(true);
+    const locations = await this.deliveryLocationService.getActiveLocations();
+    this.deliveryLocations.set(locations);
+    this.loadingLocations.set(false);
   }
 
   getSelectedReceiverEmail(): string {
@@ -93,7 +143,7 @@ export class CreatePackageComponent implements OnInit {
     this.createdPackage.set(null);
     this.emailWarning.set(null);
 
-    const { receiver_id, notes } = this.packageForm.value;
+    const { receiver_id, delivery_location_id, po_number, notes, items } = this.packageForm.value;
 
     // Get the receiver's email from the selected receiver
     const receiver = this.receivers().find(r => r.id === receiver_id);
@@ -103,9 +153,20 @@ export class CreatePackageComponent implements OnInit {
       return;
     }
 
+    // Filter out empty items
+    const validItems = (items as { quantity: number; description: string }[])
+      .filter(item => item.description?.trim())
+      .map(item => ({
+        quantity: item.quantity || 1,
+        description: item.description.trim()
+      }));
+
     const result = await this.packageService.createPackage({
       receiver_email: receiver.email,
-      notes: notes?.trim() || undefined
+      notes: notes?.trim() || undefined,
+      items: validItems.length > 0 ? validItems : undefined,
+      delivery_location_id: delivery_location_id || undefined,
+      po_number: po_number?.trim() || undefined
     });
 
     this.isSubmitting.set(false);
@@ -134,6 +195,9 @@ export class CreatePackageComponent implements OnInit {
     this.successMessage.set(null);
     this.emailSent.set(false);
     this.emailWarning.set(null);
+    // Reset items to a single empty row
+    this.items.clear();
+    this.addItem();
   }
 
   goToDashboard(): void {

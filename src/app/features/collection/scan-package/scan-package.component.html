@@ -107,9 +107,24 @@
           }
         </div>
 
+        <!-- Package Items -->
+        @if (scannedPackage()!.items && scannedPackage()!.items!.length > 0) {
+          <div class="items-summary">
+            <h3>Package Contents</h3>
+            <div class="items-list">
+              @for (item of scannedPackage()!.items; track item.id || $index) {
+                <div class="item-entry">
+                  <span class="item-qty">{{ item.quantity }}×</span>
+                  <span class="item-desc">{{ item.description }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Actions -->
         <div class="action-buttons">
-          @if (!errorMessage() && scannedPackage()!.status !== 'collected' && scannedPackage()!.status !== 'returned' && (staffService.hasRole('warehouse') || staffService.isAdmin())) {
+          @if (!errorMessage() && scannedPackage()!.status !== 'collected' && scannedPackage()!.status !== 'returned' && (staffService.hasRole('warehouse') || staffService.hasRole('collection') || staffService.isAdmin())) {
             <button class="btn btn-primary btn-large" (click)="proceedToCollection(scannedPackage()!)">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

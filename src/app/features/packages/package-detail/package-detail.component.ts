@@ -32,6 +32,8 @@ export class PackageDetailComponent implements OnInit {
   isLoading = signal(true);
   package = signal<Package | null>(null);
   errorMessage = signal<string | null>(null);
+  isItemsCollapsed = signal(true);
+  isTimelineCollapsed = signal(true);
 
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
@@ -88,5 +90,13 @@ export class PackageDetailComponent implements OnInit {
 
   scanForCollection(): void {
     this.router.navigate(['/collection/scan']);
+  }
+
+  toggleItemsCollapsed(): void {
+    this.isItemsCollapsed.update(value => !value);
+  }
+
+  toggleTimelineCollapsed(): void {
+    this.isTimelineCollapsed.update(value => !value);
   }
 }

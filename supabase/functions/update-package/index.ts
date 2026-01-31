@@ -8,7 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 interface UpdatePackageRequest {
   package_id: string
-  status?: 'pending' | 'notified' | 'collected' | 'returned'
+  status?: 'pending' | 'notified' | 'in_transit' | 'ready_for_collection' | 'collected' | 'returned'
   notes?: string
   receiver_email?: string
 }

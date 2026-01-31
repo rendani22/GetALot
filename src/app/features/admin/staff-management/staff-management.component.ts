@@ -41,7 +41,7 @@ export class StaffManagementComponent implements OnInit {
 
   // Role config for display
   roleConfig = ROLE_CONFIG;
-  roles: StaffRole[] = ['warehouse', 'driver', 'admin'];
+  roles: StaffRole[] = ['warehouse', 'driver', 'collection', 'admin'];
 
   // Forms
   createForm: FormGroup;

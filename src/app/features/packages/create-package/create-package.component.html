@@ -30,6 +30,12 @@
             <span class="label">Receiver</span>
             <span class="value">{{ pkg.receiver_email }}</span>
           </div>
+          @if (pkg.po_number) {
+            <div class="detail-row">
+              <span class="label">PO Number</span>
+              <span class="value">{{ pkg.po_number }}</span>
+            </div>
+          }
           @if (pkg.notes) {
             <div class="detail-row">
               <span class="label">Notes</span>
@@ -43,6 +49,21 @@
             </span>
           </div>
         </div>
+
+        <!-- Package Items -->
+        @if (pkg.items && pkg.items.length > 0) {
+          <div class="items-summary">
+            <h3>Package Contents</h3>
+            <div class="items-list">
+              @for (item of pkg.items; track item.id || $index) {
+                <div class="item-entry">
+                  <span class="item-qty">{{ item.quantity }}×</span>
+                  <span class="item-desc">{{ item.description }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         @if (emailSent()) {
           <div class="email-status success">
@@ -137,14 +158,108 @@
           </div>
 
           <div class="form-group">
-            <label for="notes">Notes (Optional)</label>
-            <textarea
-              id="notes"
-              formControlName="notes"
-              placeholder="Add any additional notes about the package..."
-              rows="3"
-            ></textarea>
+            <label for="delivery_location_id">Delivery Location *</label>
+            @if (loadingLocations()) {
+              <div class="loading-receivers">
+                <span class="spinner-small"></span>
+                Loading locations...
+              </div>
+            } @else if (deliveryLocations().length === 0) {
+              <div class="no-receivers">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span>No delivery locations found. Please add locations in the admin panel.</span>
+              </div>
+            } @else {
+              <select
+                id="delivery_location_id"
+                formControlName="delivery_location_id"
+                [class.invalid]="packageForm.get('delivery_location_id')?.invalid && packageForm.get('delivery_location_id')?.touched"
+              >
+                <option value="">-- Select delivery location --</option>
+                @for (location of deliveryLocations(); track location.id) {
+                  <option [value]="location.id">
+                    {{ location.name }} - {{ location.address }}
+                  </option>
+                }
+              </select>
+              @if (packageForm.get('delivery_location_id')?.invalid && packageForm.get('delivery_location_id')?.touched) {
+                <span class="field-error">Please select a delivery location</span>
+              }
+            }
           </div>
+
+          <div class="form-group">
+            <label for="po_number">Purchase Order Number *</label>
+            <input
+              id="po_number"
+              type="text"
+              formControlName="po_number"
+              placeholder="e.g., GG80641181"
+              [class.invalid]="packageForm.get('po_number')?.invalid && packageForm.get('po_number')?.touched"
+            />
+            @if (packageForm.get('po_number')?.invalid && packageForm.get('po_number')?.touched) {
+              <span class="field-error">Purchase order number is required</span>
+            }
+          </div>
+
+          <!-- Package Items Section -->
+          <div class="form-group items-section">
+            <label>Package Items</label>
+            <div class="items-table" formArrayName="items">
+              <div class="items-header">
+                <span class="qty-header">Qty</span>
+                <span class="desc-header">Description</span>
+                <span class="actions-header"></span>
+              </div>
+              @for (item of items.controls; track item; let i = $index) {
+                <div class="item-row" [formGroupName]="i">
+                  <input
+                    type="number"
+                    formControlName="quantity"
+                    class="qty-input"
+                    min="1"
+                    placeholder="1"
+                  />
+                  <input
+                    type="text"
+                    formControlName="description"
+                    class="desc-input"
+                    placeholder="Item description"
+                  />
+                  <button
+                    type="button"
+                    class="remove-btn"
+                    (click)="removeItem(i)"
+                    [attr.aria-label]="'Remove item ' + (i + 1)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              }
+              <button type="button" class="add-item-btn" (click)="addItem()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Item
+              </button>
+            </div>
+          </div>
+
+            <div class="form-group">
+                <label for="notes">Notes (Optional)</label>
+                <textarea
+                        id="notes"
+                        formControlName="notes"
+                        placeholder="Add any additional notes about the package..."
+                        rows="3"
+                ></textarea>
+            </div>
+
 
           <div class="form-note">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">

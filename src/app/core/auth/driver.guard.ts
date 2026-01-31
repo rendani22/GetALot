@@ -5,10 +5,10 @@ import { AuthService } from './auth.service';
 import { StaffService } from '../services/staff.service';
 
 /**
- * Collection guard to protect routes that require collection point access.
- * Allows warehouse staff and admins to access collection features.
+ * Driver guard to protect routes that require driver access.
+ * Allows drivers and admins to access driver features.
  */
-export const collectionGuard: CanActivateFn = async (route, state) => {
+export const driverGuard: CanActivateFn = async (route, state) => {
   const authService = inject(AuthService);
   const staffService = inject(StaffService);
   const router = inject(Router);
@@ -43,8 +43,8 @@ export const collectionGuard: CanActivateFn = async (route, state) => {
     profile = await staffService.loadCurrentProfile();
   }
 
-  // Check if user has collection access (warehouse, driver, collection, or admin)
-  if (profile?.role === 'warehouse' || profile?.role === 'driver' || profile?.role === 'collection' || profile?.role === 'admin') {
+  // Check if user has driver access (driver or admin)
+  if (profile?.role === 'driver' || profile?.role === 'admin') {
     return true;
   }
 

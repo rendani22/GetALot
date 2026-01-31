@@ -16,3 +16,19 @@ verify_jwt = false
 
 [functions.log-audit]
 verify_jwt = false
+
+[functions.driver-pickup]
+verify_jwt = false
+
+[functions.receive-at-collection]
+verify_jwt = false
+
+[functions.complete-pod]
+verify_jwt = false
+
+[functions.lock-pod]
+verify_jwt = false
+
+[functions.update-package]
+verify_jwt = false
+

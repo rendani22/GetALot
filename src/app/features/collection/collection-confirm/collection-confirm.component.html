@@ -15,10 +15,8 @@
         <div class="spinner"></div>
         <p>Loading package...</p>
       </div>
-    }
-
-    <!-- Error State (no package loaded) -->
-    @else if (errorMessage() && !package()) {
+    } @else if (errorMessage() && !package()) {
+      <!-- Error State (no package loaded) -->
       <div class="error-card">
         <div class="error-icon">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -30,10 +28,8 @@
           Go Back
         </button>
       </div>
-    }
-
-    <!-- Collection Complete -->
-    @else if (isComplete()) {
+    } @else if (isComplete()) {
+      <!-- Collection Complete -->
       <div class="success-card">
         <div class="success-icon">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -43,6 +39,16 @@
 
         <h2>Collection Complete!</h2>
         <p class="success-message">Package has been successfully collected and POD generated.</p>
+
+        <!-- Email Status -->
+        @if (emailSent()) {
+          <div class="email-status success">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+            </svg>
+            <span>POD confirmation email sent to {{ package()!.receiver_email }}</span>
+          </div>
+        }
 
         <!-- POD Reference -->
         @if (pod()) {
@@ -109,10 +115,8 @@
           </button>
         </div>
       </div>
-    }
-
-    <!-- Collection Form -->
-    @else if (package()) {
+    } @else if (package()) {
+      <!-- Collection Form -->
       <!-- Package Already Collected Warning -->
       @if (package()!.status === 'collected' || package()!.status === 'returned') {
         <div class="warning-card">
@@ -122,6 +126,17 @@
             </svg>
           </div>
           <p>{{ errorMessage() }}</p>
+          <button class="btn btn-secondary" (click)="goBack()">Go Back</button>
+        </div>
+      } @else if (package()!.status !== 'ready_for_collection' && package()!.status !== 'notified' && package()!.status !== 'pending') {
+        <!-- Package not ready for collection -->
+        <div class="warning-card">
+          <div class="warning-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <p>This package is not ready for collection yet. Current status: <strong>{{ statusConfig[package()!.status].label }}</strong></p>
           <button class="btn btn-secondary" (click)="goBack()">Go Back</button>
         </div>
       } @else {
@@ -148,6 +163,29 @@
               </span>
               <span class="value">{{ package()!.receiver_email }}</span>
             </div>
+            @if (package()!.po_number) {
+              <div class="detail-row">
+                <span class="label">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                  </svg>
+                  PO Number
+                </span>
+                <span class="value po-number">{{ package()!.po_number }}</span>
+              </div>
+            }
+            @if (package()!.delivery_location) {
+              <div class="detail-row">
+                <span class="label">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                  </svg>
+                  Delivery Location
+                </span>
+                <span class="value">{{ package()!.delivery_location!.name }}</span>
+              </div>
+            }
             @if (package()!.notes) {
               <div class="detail-row">
                 <span class="label">
@@ -169,20 +207,34 @@
               <span class="value">{{ formatDate(package()!.created_at) }}</span>
             </div>
           </div>
+
+          <!-- Proceed to Collection Button - shows when not in signature mode -->
+          @if (!showSignatureStep()) {
+            <div class="proceed-section">
+              <button class="btn btn-primary btn-large btn-block" (click)="proceedToSignature()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+                Proceed to Collection
+              </button>
+            </div>
+          }
         </div>
 
-        <!-- Signature Card -->
-        <div class="card signature-card">
-          <app-signature-pad
-            [packageId]="package()!.id"
-            [packageReference]="package()!.reference"
-            title="Receiver Signature"
-            instruction="Please ask the receiver to sign below to confirm receipt"
-            (signed)="onSignatureSigned($event)"
-            (cleared)="onSignatureCleared()"
-            (errorOccurred)="onSignatureError($event)"
-          />
-        </div>
+        <!-- Signature Card - only shows after proceeding -->
+        @if (showSignatureStep()) {
+          <div class="card signature-card">
+            <app-signature-pad
+              [packageId]="package()!.id"
+              [packageReference]="package()!.reference"
+              title="Receiver Signature"
+              instruction="Please ask the receiver to sign below to confirm receipt"
+              (signed)="onSignatureSigned($event)"
+              (cleared)="onSignatureCleared()"
+              (errorOccurred)="onSignatureError($event)"
+            />
+          </div>
+        }
 
         <!-- Error Message -->
         @if (errorMessage()) {

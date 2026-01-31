@@ -184,12 +184,23 @@ serve(async (req) => {
       )
     }
 
-    // Check package status - should be pending or notified
+    // Check package status - should be ready_for_collection (or pending/notified for legacy)
     if (pkg.status === 'collected') {
       return new Response(
         JSON.stringify({
           error: 'Package already collected',
           details: `Package ${pkg.reference} has already been marked as collected`
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Ideally package should be ready_for_collection, but allow legacy statuses
+    if (!['pending', 'notified', 'in_transit', 'ready_for_collection'].includes(pkg.status)) {
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid package status for collection',
+          details: `Package ${pkg.reference} has status '${pkg.status}'. Expected 'ready_for_collection'.`
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -278,8 +289,7 @@ serve(async (req) => {
       }
     })
 
-    // Lock the POD (this should be done after PDF generation in real scenario)
-    // For now, we'll mark it as ready to lock - client will call lock-pod after PDF
+    // Note: Email with POD PDF attachment is sent from lock-pod after PDF generation
 
     return new Response(
       JSON.stringify({
@@ -292,7 +302,7 @@ serve(async (req) => {
           pod_id: pod.id
         },
         message: `POD ${pod.pod_reference} created successfully for package ${pkg.reference}`,
-        next_step: 'Generate PDF and call lock-pod endpoint'
+        next_step: 'Generate PDF and call lock-pod endpoint to finalize and send email'
       }),
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

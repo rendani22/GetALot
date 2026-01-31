@@ -37,14 +37,14 @@ export class PodService {
     signatureUrl: string,
     signaturePath: string,
     signedAt: string
-  ): Promise<{ pod: Pod | null; pdfUrl: string | null; error: string | null }> {
+  ): Promise<{ pod: Pod | null; pdfUrl: string | null; emailSent: boolean; error: string | null }> {
     this.loadingSubject.next(true);
     this.errorSubject.next(null);
 
     try {
       const session = await supabase.auth.getSession();
       if (!session.data.session) {
-        return { pod: null, pdfUrl: null, error: 'Not authenticated' };
+        return { pod: null, pdfUrl: null, emailSent: false, error: 'Not authenticated' };
       }
 
       // Step 1: Create POD record via Edge Function
@@ -72,7 +72,7 @@ export class PodService {
       if (!createResponse.ok) {
         const errorMessage = createData.error || createData.details || 'Failed to create POD';
         this.errorSubject.next(errorMessage);
-        return { pod: null, pdfUrl: null, error: errorMessage };
+        return { pod: null, pdfUrl: null, emailSent: false, error: errorMessage };
       }
 
       const pod = createData.pod as Pod;
@@ -85,7 +85,7 @@ export class PodService {
         // Continue even if PDF fails - we can regenerate later
       }
 
-      // Step 3: Lock POD via Edge Function
+      // Step 3: Lock POD via Edge Function (this also sends the email with PDF attached)
       const lockResponse = await fetch(
         `${environment.supabase.url}/functions/v1/lock-pod`,
         {
@@ -108,17 +108,18 @@ export class PodService {
       if (!lockResponse.ok) {
         console.error('Failed to lock POD:', lockData.error);
         // Return the pod even if locking fails - it can be locked later
-        return { pod, pdfUrl: pdfResult.url, error: null };
+        return { pod, pdfUrl: pdfResult.url, emailSent: false, error: null };
       }
 
       const lockedPod = lockData.pod as Pod;
+      const emailSent = lockData.email_sent === true;
 
-      return { pod: lockedPod, pdfUrl: pdfResult.url, error: null };
+      return { pod: lockedPod, pdfUrl: pdfResult.url, emailSent, error: null };
 
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to complete POD';
       this.errorSubject.next(errorMessage);
-      return { pod: null, pdfUrl: null, error: errorMessage };
+      return { pod: null, pdfUrl: null, emailSent: false, error: errorMessage };
     } finally {
       this.loadingSubject.next(false);
     }
@@ -172,7 +173,7 @@ export class PodService {
   }
 
   /**
-   * Generate the POD PDF document
+   * Generate the POD PDF document in traditional Delivery Note format
    */
   private async generatePodPdf(
     pod: Pod,
@@ -195,181 +196,275 @@ export class PodService {
       pdf.text(text, x, y, options);
     };
 
-    // ===== HEADER =====
+    // Format date for delivery note (date only, no time)
+    const formatDate = (dateString: string): string => {
+      return new Date(dateString).toLocaleDateString('en-ZA', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+    };
+
+    // ===== SECTION 1: HEADER WITH LOGO =====
     pdf.setFillColor(30, 58, 95); // #1e3a5f
     pdf.rect(0, 0, pageWidth, 40, 'F');
 
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(24);
-    pdf.setFont('helvetica', 'bold');
-    addText('PROOF OF DELIVERY', pageWidth / 2, 18, { align: 'center' });
-
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'normal');
-    addText(pod.pod_reference, pageWidth / 2, 30, { align: 'center' });
-
-    yPos = 55;
-
-    // ===== POD DETAILS BOX =====
-    pdf.setDrawColor(229, 231, 235); // #e5e7eb
-    pdf.setFillColor(249, 250, 251); // #f9fafb
-    pdf.roundedRect(margin, yPos, pageWidth - 2 * margin, 45, 3, 3, 'FD');
-
-    pdf.setTextColor(107, 114, 128); // #6b7280
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-
-    const col1X = margin + 10;
-    const col2X = pageWidth / 2 + 10;
-    let detailY = yPos + 12;
-
-    // Row 1
-    addText('POD Reference', col1X, detailY);
-    addText('Package Reference', col2X, detailY);
-
-    pdf.setTextColor(17, 24, 39); // #111827
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    detailY += 6;
-    addText(pod.pod_reference, col1X, detailY);
-    addText(pod.package_reference, col2X, detailY);
-
-    // Row 2
-    detailY += 12;
-    pdf.setTextColor(107, 114, 128);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    addText('Receiver Email', col1X, detailY);
-    addText('Completed At', col2X, detailY);
-
-    pdf.setTextColor(17, 24, 39);
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    detailY += 6;
-    addText(pod.receiver_email, col1X, detailY);
-    addText(this.formatDateTime(pod.completed_at), col2X, detailY);
-
-    yPos += 55;
-
-    // ===== STAFF DETAILS =====
-    yPos += 10;
-    pdf.setTextColor(30, 58, 95);
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    addText('Processed By', margin, yPos);
-
-    yPos += 8;
-    pdf.setDrawColor(229, 231, 235);
-    pdf.line(margin, yPos, pageWidth - margin, yPos);
-
-    yPos += 10;
-    pdf.setTextColor(107, 114, 128);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-
-    addText('Staff Name', col1X - 10, yPos);
-    addText('Staff Email', col2X - 10, yPos);
-
-    pdf.setTextColor(17, 24, 39);
-    pdf.setFontSize(11);
-    yPos += 6;
-    addText(pod.staff_name, col1X - 10, yPos);
-    addText(pod.staff_email, col2X - 10, yPos);
-
-    yPos += 8;
-    pdf.setTextColor(107, 114, 128);
-    pdf.setFontSize(10);
-    addText('Staff ID', col1X - 10, yPos);
-
-    pdf.setTextColor(17, 24, 39);
-    pdf.setFontSize(9);
-    pdf.setFont('courier', 'normal');
-    yPos += 6;
-    addText(pod.staff_id, col1X - 10, yPos);
-
-    // ===== PACKAGE NOTES =====
-    if (pkg.notes) {
-      yPos += 15;
-      pdf.setTextColor(30, 58, 95);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      addText('Package Notes', margin, yPos);
-
-      yPos += 8;
-      pdf.setDrawColor(229, 231, 235);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-
-      yPos += 8;
-      pdf.setTextColor(55, 65, 81);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-
-      // Word wrap notes
-      const splitNotes = pdf.splitTextToSize(pkg.notes, pageWidth - 2 * margin - 10);
-      pdf.text(splitNotes, margin + 5, yPos);
-      yPos += splitNotes.length * 5;
+    // Add logo to header
+    try {
+      const logoUrl = 'rabelani-logo.png';
+      const logoImg = await this.loadImage(logoUrl);
+      // Logo dimensions - maintain aspect ratio
+      const logoHeight = 18;
+      const logoWidth = 38; // Approximate, adjust based on actual logo aspect ratio
+      pdf.addImage(logoImg, 'PNG', margin, 6, logoWidth, logoHeight);
+    } catch (err) {
+      console.warn('Failed to load logo for PDF:', err);
+      // Continue without logo if it fails to load
     }
 
-    // ===== SIGNATURE =====
-    yPos += 15;
-    pdf.setTextColor(30, 58, 95);
-    pdf.setFontSize(14);
+    // DELIVERY NOTE title (positioned to the right of logo)
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(22);
     pdf.setFont('helvetica', 'bold');
-    addText('Receiver Signature', margin, yPos);
+    addText('DELIVERY NOTE', pageWidth - margin, 15, { align: 'right' });
+
+    // Header details row
+    yPos = 32;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+
+    const headerCol1 = margin + 45; // After logo
+    const headerCol2 = pageWidth / 2 + 10;
+    const headerCol3 = pageWidth - margin - 40;
+
+    addText(`No: ${pod.pod_reference}`, headerCol1, yPos);
+    addText(`Date: ${formatDate(pod.completed_at)}  `, headerCol2, yPos);
+    if (pkg.po_number) {
+      addText(`PO: ${pkg.po_number}`, headerCol3, yPos);
+    }
+
+    yPos = 50;
+
+    // ===== SECTION 2: SUPPLIER DETAILS =====
+    pdf.setTextColor(30, 58, 95);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    addText('From:', margin, yPos);
+
+    yPos += 8;
+    pdf.setTextColor(17, 24, 39);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    addText(pod.staff_name, margin, yPos);
+
+    yPos += 5;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(55, 65, 81);
+    addText(pod.staff_email, margin, yPos);
+
+    yPos += 15;
+
+    // ===== SECTION 3: CUSTOMER DETAILS =====
+    pdf.setDrawColor(229, 231, 235);
+    pdf.setFillColor(249, 250, 251);
+    pdf.roundedRect(margin, yPos, pageWidth - 2 * margin, 35, 3, 3, 'FD');
+
+    yPos += 8;
+    pdf.setTextColor(30, 58, 95);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    addText('To:', margin + 5, yPos);
+
+    yPos += 7;
+    pdf.setTextColor(17, 24, 39);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    addText(pod.receiver_email, margin + 5, yPos);
+
+    // Delivery Location (if exists)
+    if (pkg.delivery_location) {
+      yPos += 6;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(55, 65, 81);
+      addText(pkg.delivery_location.name, margin + 5, yPos);
+
+      if (pkg.delivery_location.address) {
+        yPos += 5;
+        pdf.setFontSize(9);
+        const addressLines = pdf.splitTextToSize(pkg.delivery_location.address, pageWidth - 2 * margin - 15);
+        pdf.text(addressLines, margin + 5, yPos);
+      }
+    }
+
+    yPos += 25;
+
+    // ===== SECTION 4: ITEM LIST =====
+    pdf.setTextColor(30, 58, 95);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    addText('Items Delivered', margin, yPos);
+
+    yPos += 8;
+    pdf.setDrawColor(229, 231, 235);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+
+    yPos += 5;
+
+    // Table header
+    pdf.setFillColor(243, 244, 246);
+    pdf.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
+
+    pdf.setTextColor(55, 65, 81);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    yPos += 5;
+    addText('Qty', margin + 5, yPos);
+    addText('Description', margin + 25, yPos);
+
+    yPos += 6;
+    pdf.setDrawColor(229, 231, 235);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+
+    yPos += 6;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(17, 24, 39);
+    pdf.setFontSize(10);
+
+    // Render items
+    if (pkg.items && pkg.items.length > 0) {
+      for (const item of pkg.items) {
+        addText(item.quantity.toString(), margin + 5, yPos);
+        const descLines = pdf.splitTextToSize(item.description, pageWidth - margin - 50);
+        pdf.text(descLines, margin + 25, yPos);
+        yPos += descLines.length * 5 + 4;
+
+        // Draw row separator
+        pdf.setDrawColor(243, 244, 246);
+        pdf.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+      }
+    } else {
+      // No items - show note description if available
+      pdf.setTextColor(107, 114, 128);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'italic');
+      if (pkg.notes) {
+        const notesLines = pdf.splitTextToSize(pkg.notes, pageWidth - margin - 50);
+        addText('1', margin + 5, yPos);
+        pdf.text(notesLines, margin + 25, yPos);
+        yPos += notesLines.length * 5 + 4;
+      } else {
+        addText('See package for contents', margin + 25, yPos);
+        yPos += 10;
+      }
+    }
+
+    // Table bottom border
+    pdf.setDrawColor(229, 231, 235);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+
+    yPos += 20;
+
+    // ===== SECTION 5: RECEIPT CONFIRMATION =====
+    // Check if we need a new page for signature section
+    if (yPos > pageHeight - 100) {
+      pdf.addPage();
+      yPos = margin;
+    }
+
+    pdf.setTextColor(30, 58, 95);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    addText('Receipt Confirmation', margin, yPos);
 
     yPos += 8;
     pdf.setDrawColor(229, 231, 235);
     pdf.line(margin, yPos, pageWidth - margin, yPos);
 
     yPos += 10;
+
+    // "Received in good order" statement
+    pdf.setFillColor(240, 253, 244); // Light green background
+    pdf.setDrawColor(187, 247, 208); // Green border
+    pdf.roundedRect(margin, yPos, pageWidth - 2 * margin, 12, 2, 2, 'FD');
+
+    pdf.setTextColor(22, 101, 52); // Dark green text
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    addText('Received in good order', pageWidth / 2, yPos + 8, { align: 'center' });
+
+    yPos += 20;
+
+    // Receiver details grid
+    const col1X = margin;
+    const col2X = pageWidth / 2 + 10;
+    const labelWidth = 50;
+
+    // Row 1: Receiver Name
+    pdf.setTextColor(107, 114, 128);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    addText('Receiver Name:', col1X, yPos);
+    pdf.setTextColor(17, 24, 39);
+    pdf.setFont('helvetica', 'bold');
+    addText(pod.receiver_email.split('@')[0], col1X + labelWidth, yPos);
+
+    yPos += 10;
+
+    // Row 2: Date Signed
+    pdf.setTextColor(107, 114, 128);
+    pdf.setFont('helvetica', 'normal');
+    addText('Date Signed:', col1X, yPos);
+    pdf.setTextColor(17, 24, 39);
+    addText(formatDate(pod.signed_at), col1X + labelWidth, yPos);
+
+    yPos += 15;
+
+    // Signature
+    pdf.setTextColor(107, 114, 128);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    addText('Signature:', col1X, yPos);
+
+    yPos += 5;
 
     // Add signature image
     try {
       const signatureImg = await this.loadImage(signatureUrl);
-      const sigWidth = 80;
-      const sigHeight = 40;
-      const sigX = (pageWidth - sigWidth) / 2;
+      const sigWidth = 70;
+      const sigHeight = 35;
+      const sigX = col1X + labelWidth;
 
-      pdf.addImage(signatureImg, 'PNG', sigX, yPos, sigWidth, sigHeight);
+      pdf.addImage(signatureImg, 'PNG', sigX, yPos - 5, sigWidth, sigHeight);
       yPos += sigHeight + 5;
 
-      // Signature line
+      // Signature underline
       pdf.setDrawColor(156, 163, 175);
       pdf.line(sigX, yPos, sigX + sigWidth, yPos);
-
-      yPos += 5;
-      pdf.setTextColor(107, 114, 128);
-      pdf.setFontSize(9);
-      addText(`Signed at: ${this.formatDateTime(pod.signed_at)}`, pageWidth / 2, yPos, { align: 'center' });
     } catch (err) {
       console.warn('Failed to add signature to PDF:', err);
+      yPos += 30;
       pdf.setTextColor(220, 38, 38);
       pdf.setFontSize(10);
-      addText('Signature image unavailable', pageWidth / 2, yPos + 20, { align: 'center' });
-      yPos += 40;
+      addText('Signature captured digitally', col1X + labelWidth, yPos);
+      yPos += 10;
     }
 
     // ===== FOOTER =====
-    const footerY = pageHeight - 20;
+    const footerY = pageHeight - 15;
 
     pdf.setDrawColor(229, 231, 235);
-    pdf.line(margin, footerY - 10, pageWidth - margin, footerY - 10);
+    pdf.line(margin, footerY - 8, pageWidth - margin, footerY - 8);
 
     pdf.setTextColor(156, 163, 175);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
 
     addText(
-      `This document is an official Proof of Delivery record. POD Reference: ${pod.pod_reference}`,
+      `Delivery Note No: ${pod.pod_reference}`,
       pageWidth / 2,
-      footerY - 3,
-      { align: 'center' }
-    );
-
-    addText(
-      `Generated: ${this.formatDateTime(new Date().toISOString())} | Document is locked and immutable`,
-      pageWidth / 2,
-      footerY + 3,
+      footerY,
       { align: 'center' }
     );
 

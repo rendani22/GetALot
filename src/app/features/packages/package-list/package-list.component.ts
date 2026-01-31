@@ -36,7 +36,7 @@ export class PackageListComponent implements OnInit {
 
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
-  statusOptions: (PackageStatus | 'all')[] = ['all', 'pending', 'notified', 'collected', 'returned'];
+  statusOptions: (PackageStatus | 'all')[] = ['all', 'pending', 'notified', 'in_transit', 'ready_for_collection', 'collected', 'returned'];
 
   async ngOnInit(): Promise<void> {
     await this.loadPackages();

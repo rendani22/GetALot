@@ -307,3 +307,43 @@
   padding: 1rem 1.5rem;
   font-size: 1.0625rem;
 }
+
+// Items Summary
+.items-summary {
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  text-align: left;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .item-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+
+    .item-qty {
+      color: #3b82f6;
+      font-weight: 600;
+      min-width: 30px;
+    }
+
+    .item-desc {
+      color: #374151;
+    }
+  }
+}

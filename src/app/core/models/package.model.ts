@@ -1,11 +1,24 @@
 /**
  * Package status definitions for the POD system.
- * - pending: Package registered, awaiting notification
- * - notified: Receiver has been notified via email
+ * - pending: Package registered, being prepared
+ * - notified: Initial notification sent (package being prepared)
+ * - in_transit: Driver picked up package, on the way to collection point
+ * - ready_for_collection: Package arrived at collection point, ready for pickup
  * - collected: Package has been collected by receiver
  * - returned: Package was returned (unclaimed)
  */
-export type PackageStatus = 'pending' | 'notified' | 'collected' | 'returned';
+export type PackageStatus = 'pending' | 'notified' | 'in_transit' | 'ready_for_collection' | 'collected' | 'returned';
+
+/**
+ * Package item representing an individual item in a package.
+ */
+export interface PackageItem {
+  id?: string;
+  package_id?: string;
+  quantity: number;
+  description: string;
+  created_at?: string;
+}
 
 /**
  * Package interface matching the database schema.
@@ -21,12 +34,30 @@ export interface Package {
   updated_at: string;
   collected_at: string | null;
   collected_by: string | null;
+  // Driver pickup tracking
+  picked_up_by: string | null;
+  picked_up_at: string | null;
+  // Collection point receiving tracking
+  received_by: string | null;
+  received_at: string | null;
   // POD signature fields
   signature_url: string | null;
   signature_path: string | null;
   signed_at: string | null;
   // POD reference
   pod_id: string | null;
+  // Delivery location
+  delivery_location_id: string | null;
+  delivery_location?: {
+    id: string;
+    name: string;
+    address: string;
+    google_maps_link: string | null;
+  };
+  // Purchase order number
+  po_number: string | null;
+  // Package items
+  items?: PackageItem[];
 }
 
 /**
@@ -36,6 +67,9 @@ export interface Package {
 export interface CreatePackageDto {
   receiver_email: string;
   notes?: string;
+  items?: { quantity: number; description: string }[];
+  delivery_location_id?: string;
+  po_number?: string;
 }
 
 /**
@@ -64,13 +98,23 @@ export const PACKAGE_STATUS_CONFIG: Record<PackageStatus, { label: string; color
     icon: 'clock'
   },
   notified: {
-    label: 'Notified',
+    label: 'Being Prepared',
+    color: '#8b5cf6',
+    icon: 'package'
+  },
+  in_transit: {
+    label: 'In Transit',
     color: '#3b82f6',
-    icon: 'mail'
+    icon: 'truck'
+  },
+  ready_for_collection: {
+    label: 'Ready for Collection',
+    color: '#10b981',
+    icon: 'check-circle'
   },
   collected: {
     label: 'Collected',
-    color: '#10b981',
+    color: '#059669',
     icon: 'check'
   },
   returned: {

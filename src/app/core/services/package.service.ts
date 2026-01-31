@@ -151,7 +151,7 @@ export class PackageService {
   async getPackage(id: string): Promise<{ package: Package | null; error: string | null }> {
     const { data, error } = await supabase
       .from('packages')
-      .select('*')
+      .select('*, items:package_items(id, quantity, description)')
       .eq('id', id)
       .single();
 
@@ -168,7 +168,7 @@ export class PackageService {
   async getPackageByReference(reference: string): Promise<{ package: Package | null; error: string | null }> {
     const { data, error } = await supabase
       .from('packages')
-      .select('*')
+      .select('*, items:package_items(id, quantity, description)')
       .eq('reference', reference.toUpperCase())
       .single();
 
@@ -301,5 +301,157 @@ export class PackageService {
       .limit(limit);
 
     return data || [];
+  }
+
+  /**
+   * Driver picks up package for delivery.
+   * Marks package as in_transit and sends "On the Way" email.
+   */
+  async driverPickup(packageId: string): Promise<{
+    package: Package | null;
+    emailSent: boolean;
+    error: string | null;
+  }> {
+    this.loadingSubject.next(true);
+    this.errorSubject.next(null);
+
+    try {
+      // Force refresh the session to get a new valid token
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError) {
+        console.error('Session refresh error in driverPickup:', refreshError);
+        // Fall back to getting the current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) {
+          return { package: null, emailSent: false, error: 'Session expired. Please log in again.' };
+        }
+      }
+
+      const activeSession = session || (await supabase.auth.getSession()).data.session;
+
+      if (!activeSession) {
+        return { package: null, emailSent: false, error: 'Not authenticated' };
+      }
+
+      console.log('Calling driver-pickup with token:', activeSession.access_token.substring(0, 20) + '...');
+      console.log('Token expires at:', new Date(activeSession.expires_at! * 1000).toISOString());
+      console.log('Current time:', new Date().toISOString());
+
+      const response = await fetch(
+        `${environment.supabase.url}/functions/v1/driver-pickup`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeSession.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify({ package_id: packageId })
+        }
+      );
+
+      let data;
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        console.error('Failed to parse response:', responseText);
+        data = { error: responseText };
+      }
+
+      console.log('driver-pickup response:', response.status, data);
+
+      if (!response.ok) {
+        const errorMessage = data.error || data.details || 'Failed to pickup package';
+        this.errorSubject.next(errorMessage);
+        return { package: null, emailSent: false, error: errorMessage };
+      }
+
+      const updatedPackage = data.package as Package;
+
+      // Update local list
+      const currentPackages = this.packagesSubject.value;
+      const updatedPackages = currentPackages.map(p =>
+        p.id === packageId ? updatedPackage : p
+      );
+      this.packagesSubject.next(updatedPackages);
+
+      return {
+        package: updatedPackage,
+        emailSent: data.email_sent,
+        error: data.email_error
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to pickup package';
+      this.errorSubject.next(errorMessage);
+      return { package: null, emailSent: false, error: errorMessage };
+    } finally {
+      this.loadingSubject.next(false);
+    }
+  }
+
+  /**
+   * Collection point staff receives package.
+   * Marks package as ready_for_collection and sends "Ready for Collection" email.
+   */
+  async receiveAtCollection(packageId: string): Promise<{
+    package: Package | null;
+    emailSent: boolean;
+    error: string | null;
+  }> {
+    this.loadingSubject.next(true);
+    this.errorSubject.next(null);
+
+    try {
+      const session = await supabase.auth.getSession();
+      if (!session.data.session) {
+        return { package: null, emailSent: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(
+        `${environment.supabase.url}/functions/v1/receive-at-collection`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+            'apikey': environment.supabase.anonKey
+          },
+          body: JSON.stringify({ package_id: packageId })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.error || data.details || 'Failed to receive package';
+        this.errorSubject.next(errorMessage);
+        return { package: null, emailSent: false, error: errorMessage };
+      }
+
+      const updatedPackage = data.package as Package;
+
+      // Update local list
+      const currentPackages = this.packagesSubject.value;
+      const updatedPackages = currentPackages.map(p =>
+        p.id === packageId ? updatedPackage : p
+      );
+      this.packagesSubject.next(updatedPackages);
+
+      return {
+        package: updatedPackage,
+        emailSent: data.email_sent,
+        error: data.email_error
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to receive package';
+      this.errorSubject.next(errorMessage);
+      return { package: null, emailSent: false, error: errorMessage };
+    } finally {
+      this.loadingSubject.next(false);
+    }
   }
 }

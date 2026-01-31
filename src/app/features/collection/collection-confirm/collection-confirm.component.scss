@@ -182,6 +182,27 @@
     font-size: 1rem;
   }
 
+  .email-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    width: 100%;
+
+    &.success {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
   .pod-reference-display {
     display: flex;
     flex-direction: column;
@@ -345,7 +366,20 @@
     color: #111827;
     text-align: right;
     word-break: break-word;
+
+    &.po-number {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-weight: 600;
+      color: #5b21b6;
+    }
   }
+}
+
+// Proceed Section
+.proceed-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 // Signature Card

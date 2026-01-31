@@ -82,6 +82,23 @@ export class ScanPackageComponent {
         return;
       }
 
+      // Check if still being prepared or in transit
+      if (pkg.status === 'pending' || pkg.status === 'notified') {
+        this.errorMessage.set(`This package (${pkg.reference}) is still being prepared and hasn't been dispatched yet.`);
+        this.scannedPackage.set(pkg);
+        this.isLoading.set(false);
+        this.showScanner.set(false);
+        return;
+      }
+
+      if (pkg.status === 'in_transit') {
+        this.errorMessage.set(`This package (${pkg.reference}) is on its way but hasn't arrived at the collection point yet.`);
+        this.scannedPackage.set(pkg);
+        this.isLoading.set(false);
+        this.showScanner.set(false);
+        return;
+      }
+
       // Record audit log
       await this.logAudit('QR_SCANNED', pkg.id, { reference: pkg.reference });
 

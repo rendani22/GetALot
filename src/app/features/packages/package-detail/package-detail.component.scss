@@ -150,6 +150,94 @@
   }
 }
 
+// Items Card
+.items-card {
+  .card-header-collapsible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #f9fafb;
+    }
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: none;
+
+      svg {
+        color: #6b7280;
+      }
+    }
+  }
+
+  .collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+
+    svg {
+      transition: transform 0.2s ease;
+    }
+
+    &.collapsed svg {
+      transform: rotate(-90deg);
+    }
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .item-qty {
+    font-weight: 600;
+    color: #3b82f6;
+    min-width: 32px;
+    font-size: 0.875rem;
+  }
+
+  .item-desc {
+    color: #374151;
+    font-size: 0.875rem;
+  }
+}
+
 // QR Card
 .qr-card {
   text-align: center;
@@ -171,6 +259,63 @@
 .audit-card {
   padding: 0;
   overflow: hidden;
+
+  .card-header-collapsible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #f9fafb;
+    }
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: none;
+
+      svg {
+        color: #6b7280;
+      }
+    }
+  }
+
+  .collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+
+    svg {
+      transition: transform 0.2s ease;
+    }
+
+    &.collapsed svg {
+      transform: rotate(-90deg);
+    }
+  }
 
   app-audit-timeline {
     display: block;

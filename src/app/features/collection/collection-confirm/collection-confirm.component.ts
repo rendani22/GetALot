@@ -6,7 +6,6 @@ import { PodService } from '../../../core/services/pod.service';
 import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
 import { Pod } from '../../../core/models/pod.model';
 import { SignaturePadComponent } from '../../../shared/components/signature-pad/signature-pad.component';
-import { supabase } from '../../../core/supabase/supabase.client';
 
 /**
  * CollectionConfirmComponent - POD collection confirmation with signature capture.
@@ -38,6 +37,7 @@ export class CollectionConfirmComponent implements OnInit {
   package = signal<Package | null>(null);
   errorMessage = signal<string | null>(null);
   isComplete = signal(false);
+  showSignatureStep = signal(false);
 
   // Signature state
   signatureUrl = signal<string | null>(null);
@@ -47,6 +47,7 @@ export class CollectionConfirmComponent implements OnInit {
   // POD state
   pod = signal<Pod | null>(null);
   podPdfUrl = signal<string | null>(null);
+  emailSent = signal(false);
 
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
@@ -88,6 +89,10 @@ export class CollectionConfirmComponent implements OnInit {
     this.package.set(pkg);
   }
 
+  proceedToSignature(): void {
+    this.showSignatureStep.set(true);
+  }
+
   onSignatureSigned(event: { url: string; path: string }): void {
     this.signatureUrl.set(event.url);
     this.signaturePath.set(event.path);
@@ -119,43 +124,28 @@ export class CollectionConfirmComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
-      // Step 1: Update package status to collected with signature info
-      const { data: updatedPkg, error: updateError } = await supabase
-        .from('packages')
-        .update({
-          status: 'collected',
-          collected_at: new Date().toISOString(),
-          signature_url: sigUrl,
-          signature_path: sigPath,
-          signed_at: sigTime
-        })
-        .eq('id', pkg.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        this.errorMessage.set(updateError.message);
-        return;
-      }
-
-      // Step 2: Complete POD process (create record, generate PDF, lock)
-      const { pod, pdfUrl, error: podError } = await this.podService.completePod(
-        updatedPkg,
+      // Complete POD process (creates POD record, updates package status, generates PDF, locks POD, sends email)
+      const { pod, pdfUrl, emailSent, error: podError } = await this.podService.completePod(
+        pkg,
         sigUrl,
         sigPath,
         sigTime
       );
 
       if (podError) {
-        // Package is collected but POD failed - show warning but allow completion
         console.error('POD completion error:', podError);
-        this.errorMessage.set(`Package collected but POD generation failed: ${podError}`);
+        this.errorMessage.set(`Collection failed: ${podError}`);
+        return;
       }
 
+      // Reload the package to get updated status
+      const { package: updatedPkg } = await this.packageService.getPackage(pkg.id);
+
       // Update local state
-      this.package.set(updatedPkg);
+      this.package.set(updatedPkg || pkg);
       this.pod.set(pod);
       this.podPdfUrl.set(pdfUrl);
+      this.emailSent.set(emailSent);
       this.isComplete.set(true);
 
     } catch (err: any) {

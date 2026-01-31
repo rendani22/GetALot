@@ -220,13 +220,158 @@ serve(async (req) => {
       }
     })
 
+    // Send POD confirmation email with PDF to receiver
+    let emailSent = false
+    let emailError: string | null = null
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+
+    if (resendApiKey) {
+      try {
+        const supportEmail = Deno.env.get('SUPPORT_EMAIL') || 'support@example.com'
+        const companyName = Deno.env.get('COMPANY_NAME') || 'POD System'
+        const collectedDate = new Date(lockedPod.completed_at).toLocaleString('en-ZA', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        // Fetch PDF as base64 for attachment if URL exists
+        let attachments: any[] = []
+        if (pdf_url) {
+          try {
+            const pdfResponse = await fetch(pdf_url)
+            if (pdfResponse.ok) {
+              const pdfBuffer = await pdfResponse.arrayBuffer()
+              const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)))
+              attachments = [{
+                filename: `${lockedPod.pod_reference}.pdf`,
+                content: pdfBase64,
+                type: 'application/pdf'
+              }]
+            }
+          } catch (pdfErr) {
+            console.warn('Failed to fetch PDF for attachment:', pdfErr)
+          }
+        }
+
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: Deno.env.get('EMAIL_FROM') || 'POD System <noreply@example.com>',
+            to: [lockedPod.receiver_email],
+            subject: `📦 Proof of Delivery - ${lockedPod.package_reference}`,
+            attachments: attachments.length > 0 ? attachments : undefined,
+            html: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              </head>
+              <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #374151;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <h1 style="color: #10b981; margin: 0;">✅ Package Collected</h1>
+                  <p style="color: #6b7280; margin-top: 10px;">Your package has been successfully collected</p>
+                </div>
+                
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                  <h2 style="color: #166534; margin: 0 0 15px 0; font-size: 18px;">Collection Details</h2>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; width: 40%;">Package Reference:</td>
+                      <td style="padding: 8px 0; font-weight: bold; color: #1e3a5f;">${lockedPod.package_reference}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280;">POD Reference:</td>
+                      <td style="padding: 8px 0; font-weight: bold; color: #1e3a5f;">${lockedPod.pod_reference}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280;">Collected At:</td>
+                      <td style="padding: 8px 0;">${collectedDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280;">Processed By:</td>
+                      <td style="padding: 8px 0;">${lockedPod.staff_name}</td>
+                    </tr>
+                  </table>
+                </div>
+                
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                  <p style="margin: 0; font-size: 14px; color: #1e40af;">
+                    <strong>📋 Proof of Delivery:</strong> ${attachments.length > 0 
+                      ? 'Your POD document is attached to this email as a PDF.' 
+                      : 'A digital signature has been captured and recorded for this collection.'}
+                  </p>
+                </div>
+
+                ${pdf_url ? `
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <a href="${pdf_url}" style="display: inline-block; padding: 12px 24px; background: #1e3a5f; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    📄 Download POD Document
+                  </a>
+                </div>
+                ` : ''}
+                
+                <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                    Questions? Contact us at <a href="mailto:${supportEmail}" style="color: #3b82f6;">${supportEmail}</a>
+                  </p>
+                  <p style="margin: 0; font-size: 11px; color: #9ca3af;">
+                    This is an automated message from ${companyName}. Please do not reply directly to this email.
+                  </p>
+                </div>
+              </body>
+              </html>
+            `
+          })
+        })
+
+        if (emailResponse.ok) {
+          emailSent = true
+          // Log email sent audit
+          await adminClient.from('audit_logs').insert({
+            action: 'POD_EMAIL_SENT',
+            entity_type: 'pod',
+            entity_id: pod_id,
+            performed_by: callingUser.id,
+            metadata: {
+              pod_reference: lockedPod.pod_reference,
+              package_reference: lockedPod.package_reference,
+              receiver_email: lockedPod.receiver_email,
+              notification_type: 'email',
+              notification_status: 'sent',
+              pdf_attached: attachments.length > 0,
+              pdf_url: pdf_url || null
+            }
+          })
+        } else {
+          const errorBody = await emailResponse.text()
+          emailError = `Email API error: ${emailResponse.status} - ${errorBody}`
+          console.warn('Email send failed:', emailError)
+        }
+      } catch (err) {
+        emailError = err instanceof Error ? err.message : 'Unknown email error'
+        console.warn('Email sending error:', emailError)
+      }
+    } else {
+      console.log('RESEND_API_KEY not configured - skipping email')
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         pod: lockedPod,
         message: `POD ${lockedPod.pod_reference} has been locked and is now immutable`,
         locked_at: now,
-        is_immutable: true
+        is_immutable: true,
+        email_sent: emailSent,
+        email_error: emailError
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

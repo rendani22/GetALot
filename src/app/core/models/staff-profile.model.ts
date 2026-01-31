@@ -1,10 +1,11 @@
 /**
  * Staff role definitions for the POD system.
  * - warehouse: Can manage inventory, prepare orders
- * - driver: Can handle deliveries, capture POD
+ * - driver: Can handle deliveries, pickup packages
+ * - collection: Collection point staff, can receive packages and process POD
  * - admin: Full system access, manage staff
  */
-export type StaffRole = 'warehouse' | 'driver' | 'admin';
+export type StaffRole = 'warehouse' | 'driver' | 'collection' | 'admin';
 
 /**
  * Staff profile interface matching the database schema.
@@ -64,7 +65,12 @@ export const ROLE_CONFIG: Record<StaffRole, { label: string; description: string
   },
   driver: {
     label: 'Driver',
-    description: 'Delivery handling and POD capture',
+    description: 'Package pickup and delivery',
+    color: '#f59e0b' // amber
+  },
+  collection: {
+    label: 'Collection Point',
+    description: 'Receive packages and process customer pickups',
     color: '#10b981' // green
   },
   admin: {
