@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "node_modules/.bin/ng build --configuration production",
+    "build": "node build.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "deploy-functions": "supabase functions deploy"
