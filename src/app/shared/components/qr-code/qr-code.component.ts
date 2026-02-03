@@ -331,43 +331,77 @@ export class QrCodeComponent implements OnChanges {
     }
 
     const referenceHtml = this.referenceText
-      ? `<p style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold; margin: 20px 0; color: #1e3a5f;">${this.referenceText}</p>`
+      ? `<p class="reference">${this.referenceText}</p>`
       : '';
 
+    // Label size: 101.6mm x 152.4mm (4" x 6")
     printWindow.document.write(`
       <!DOCTYPE html>
       <html lang="">
         <head>
           <title>Print QR Code - ${this.referenceText || this.data}</title>
           <style>
+            @page {
+              size: 101.6mm 152.4mm;
+              margin: 0;
+            }
+            * {
+              box-sizing: border-box;
+            }
             body {
+              width: 101.6mm;
+              height: 152.4mm;
+              margin: 0;
+              padding: 8mm;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              min-height: 100vh;
-              margin: 0;
               font-family: Arial, sans-serif;
             }
+            .label-content {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              width: 100%;
+              height: 100%;
+            }
             img {
-              width: 300px;
-              height: 300px;
+              width: 70mm;
+              height: 70mm;
+              max-width: 100%;
+            }
+            .reference {
+              font-family: 'Courier New', monospace;
+              font-size: 18pt;
+              font-weight: bold;
+              margin: 6mm 0 0 0;
+              color: #1e3a5f;
+              text-align: center;
+              word-break: break-all;
             }
             .instructions {
-              margin-top: 20px;
-              font-size: 14px;
+              margin-top: 10mm;
+              font-size: 10pt;
               color: #666;
               text-align: center;
             }
             @media print {
               .instructions { display: none; }
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
             }
           </style>
         </head>
         <body>
-          <img src="${dataUrl}" alt="QR Code" />
-          ${referenceHtml}
-          <p class="instructions">Press Ctrl+P (Cmd+P on Mac) to print</p>
+          <div class="label-content">
+            <img src="${dataUrl}" alt="QR Code" />
+            ${referenceHtml}
+          </div>
+          <p class="instructions">Press Ctrl+P (Cmd+P on Mac) to print<br>Set paper size to 101.6 x 152.4 mm (4" x 6")</p>
           <script>
             window.onload = function() {
               setTimeout(function() {
