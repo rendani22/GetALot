@@ -1,9 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { StaffService } from '../../core/services/staff.service';
+import { DriverLocationService } from '../../core/services/driver-location.service';
 import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
+import { Subscription } from 'rxjs';
 
 /**
  * DashboardComponent - Main authenticated landing page
@@ -83,6 +85,45 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
         @if (staffService.hasRole('driver') && !staffService.isAdmin()) {
           <div class="section">
             <h3>Driver Actions</h3>
+            
+            <!-- Location Sharing Toggle -->
+            <div class="location-sharing-card">
+              <div class="location-status">
+                <div class="location-icon" [class.active]="isLocationSharing()">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                  </svg>
+                </div>
+                <div class="location-info">
+                  <span class="location-title">Location Sharing</span>
+                  <span class="location-subtitle">
+                    @if (isLocationSharing()) {
+                      GPS active - Admin can see your location
+                    } @else {
+                      Enable to share your location with admin
+                    }
+                  </span>
+                </div>
+              </div>
+              <button 
+                class="location-toggle" 
+                [class.active]="isLocationSharing()"
+                [disabled]="locationLoading()"
+                (click)="toggleLocationSharing()">
+                @if (locationLoading()) {
+                  <span class="toggle-loading"></span>
+                } @else if (isLocationSharing()) {
+                  Stop
+                } @else {
+                  Start
+                }
+              </button>
+            </div>
+            @if (locationError()) {
+              <div class="location-error">{{ locationError() }}</div>
+            }
+            
             <div class="action-grid">
               <a routerLink="/driver/pickup" class="action-card">
                 <div class="action-icon driver">
@@ -183,6 +224,14 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
                   </svg>
                 </div>
                 <span>Delivery Locations</span>
+              </a>
+              <a routerLink="/admin/driver-map" class="action-card">
+                <div class="action-icon driver-map">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                  </svg>
+                </div>
+                <span>Drivers In Transit</span>
               </a>
             </div>
           </div>
@@ -386,6 +435,11 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
           background: #d1fae5;
           color: #059669;
         }
+
+        &.driver-map {
+          background: #fef3c7;
+          color: #f59e0b;
+        }
       }
     }
 
@@ -396,18 +450,211 @@ import { ROLE_CONFIG } from '../../core/models/staff-profile.model';
       text-align: center;
       margin: 0;
     }
+
+    // Location Sharing Styles
+    .location-sharing-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+    }
+
+    .location-status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .location-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      transition: all 0.3s;
+
+      svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      &.active {
+        background: #d1fae5;
+        color: #10b981;
+        animation: pulse-gps 2s ease-in-out infinite;
+      }
+    }
+
+    @keyframes pulse-gps {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .location-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .location-title {
+      font-weight: 600;
+      color: #1f2937;
+      font-size: 0.938rem;
+    }
+
+    .location-subtitle {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .location-toggle {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 70px;
+      background: #10b981;
+      color: white;
+
+      &:hover:not(:disabled) {
+        background: #059669;
+      }
+
+      &.active {
+        background: #ef4444;
+
+        &:hover:not(:disabled) {
+          background: #dc2626;
+        }
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      .toggle-loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .location-error {
+      padding: 0.75rem;
+      background: #fef2f2;
+      color: #dc2626;
+      border-radius: 8px;
+      font-size: 0.813rem;
+      margin-bottom: 1rem;
+    }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   authService = inject(AuthService);
   staffService = inject(StaffService);
+  private driverLocationService = inject(DriverLocationService);
   roleConfig = ROLE_CONFIG;
 
+  // Location sharing state
+  isLocationSharing = signal(false);
+  locationLoading = signal(false);
+  locationError = signal<string | null>(null);
+
+  private profileSub: Subscription | null = null;
+
   async ngOnInit(): Promise<void> {
-    // Profile is loaded automatically by StaffService when auth state changes
+    // Check persisted location-sharing state in localStorage
+    const persisted = localStorage.getItem('location_sharing') === 'true';
+
+    if (persisted) {
+      // Wait for profile to be loaded so we can verify role
+      this.profileSub = this.staffService.currentProfile$.subscribe(async (profile) => {
+        if (!profile) return;
+
+        // Only auto-start if user is a driver (and not admin)
+        if (profile.role === 'driver' && !this.isLocationSharing()) {
+          this.locationLoading.set(true);
+          const result = await this.driverLocationService.startTracking();
+          if (result.success) {
+            this.isLocationSharing.set(true);
+            this.locationError.set(null);
+            localStorage.setItem('location_sharing', 'true');
+          } else {
+            // Clear persisted flag if auto-start failed
+            this.isLocationSharing.set(false);
+            this.locationError.set(result.error);
+            localStorage.removeItem('location_sharing');
+          }
+          this.locationLoading.set(false);
+        }
+      });
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Stop location tracking when leaving dashboard
+    if (this.isLocationSharing()) {
+      this.driverLocationService.stopTracking();
+    }
+    // Unsubscribe from profile observable
+    if (this.profileSub) {
+      this.profileSub.unsubscribe();
+      this.profileSub = null;
+    }
+  }
+
+  async toggleLocationSharing(): Promise<void> {
+    this.locationLoading.set(true);
+    this.locationError.set(null);
+
+    try {
+      if (this.isLocationSharing()) {
+        this.driverLocationService.stopTracking();
+        this.isLocationSharing.set(false);
+        localStorage.removeItem('location_sharing');
+      } else {
+        const result = await this.driverLocationService.startTracking();
+        if (result.success) {
+          this.isLocationSharing.set(true);
+          localStorage.setItem('location_sharing', 'true');
+        } else {
+          this.locationError.set(result.error);
+          // Ensure we don't persist a failed state
+          localStorage.removeItem('location_sharing');
+        }
+      }
+    } catch (error) {
+      this.locationError.set('Failed to toggle location sharing');
+      localStorage.removeItem('location_sharing');
+    } finally {
+      this.locationLoading.set(false);
+    }
   }
 
   logout(): void {
+    // Stop tracking before logout
+    if (this.isLocationSharing()) {
+      this.driverLocationService.stopTracking();
+      localStorage.removeItem('location_sharing');
+    }
     this.authService.signOut();
   }
 

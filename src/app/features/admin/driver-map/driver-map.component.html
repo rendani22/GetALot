@@ -1,0 +1,287 @@
+<div class="driver-map-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+      </button>
+      <h1>Drivers In Transit</h1>
+    </div>
+    <div class="header-actions">
+      <button class="view-toggle-btn" (click)="toggleView()">
+        @if (showMapView()) {
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          List View
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+          </svg>
+          Map View
+        }
+      </button>
+      <button class="refresh-btn" (click)="refresh()" [disabled]="isLoading()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" [class.spinning]="isLoading()">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value">{{ packageCount() }}</div>
+      <div class="stat-label">Packages In Transit</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">{{ uniqueDrivers().length }}</div>
+      <div class="stat-label">Assigned Drivers</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value gps-active">{{ activeDriverCount() }}</div>
+      <div class="stat-label">GPS Active</div>
+    </div>
+    @if (lastUpdated()) {
+      <div class="stat-item last-updated">
+        <div class="stat-label">Last updated</div>
+        <div class="stat-value small">{{ lastUpdated() | date:'HH:mm:ss' }}</div>
+      </div>
+    }
+  </div>
+
+  <!-- Error Message -->
+  @if (errorMessage()) {
+    <div class="error-banner">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Map View -->
+  @if (showMapView()) {
+    <div class="map-section">
+      <div #mapContainer class="map-container"></div>
+
+      <!-- GPS Legend -->
+      <div class="map-legend">
+        <div class="legend-item">
+          <div class="legend-marker driver"></div>
+          <span>Driver with GPS</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-marker destination"></div>
+          <span>Delivery Destination</span>
+        </div>
+      </div>
+
+      <!-- Driver List Sidebar -->
+      @if (recentDriverLocations().length > 0) {
+        <div class="driver-sidebar">
+          <h3>Active Drivers</h3>
+          @for (location of recentDriverLocations(); track location.driver_id) {
+            <button class="driver-sidebar-item" (click)="centerOnDriver(location.driver_id)">
+              <div class="driver-avatar-small">
+                {{ getDriverInitials(location.driver ? { id: location.driver.id, user_id: location.user_id, email: location.driver.email, full_name: location.driver.full_name, role: 'driver', phone: location.driver.phone, is_active: true, created_at: '', updated_at: '', created_by: null } : null) }}
+              </div>
+              <div class="driver-sidebar-info">
+                <div class="driver-name">{{ location.driver?.full_name || 'Unknown' }}</div>
+                <div class="driver-update-time">{{ formatTimeElapsed(location.updated_at) }}</div>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="center-icon">
+                <path fill-rule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          }
+        </div>
+      }
+
+      <!-- No GPS Data Notice -->
+      @if (recentDriverLocations().length === 0 && !isLoading()) {
+        <div class="no-gps-notice">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+          </svg>
+          <span>No driver GPS data available. Drivers need to enable location sharing.</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading() && transitPackages().length === 0) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading transit data...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!isLoading() && transitPackages().length === 0 && !showMapView()) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+        </svg>
+      </div>
+      <h3>No Packages In Transit</h3>
+      <p>There are currently no packages being delivered by drivers.</p>
+    </div>
+  }
+
+  <!-- Main Content - Driver Cards grouped by driver -->
+  @if (transitPackages().length > 0) {
+    <div class="content">
+      @for (driver of uniqueDrivers(); track driver.id) {
+        <div class="driver-section">
+          <div class="driver-header">
+            <div class="driver-avatar">
+              {{ getDriverInitials(driver) }}
+            </div>
+            <div class="driver-info">
+              <h2>{{ driver.full_name }}</h2>
+              <span class="driver-meta">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                  <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                </svg>
+                {{ driver.email }}
+              </span>
+              @if (driver.phone) {
+                <span class="driver-meta">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M2 3.5A1.5 1.5 0 013.5 2h1.148a1.5 1.5 0 011.465 1.175l.716 3.223a1.5 1.5 0 01-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 006.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 011.767-1.052l3.223.716A1.5 1.5 0 0118 15.352V16.5a1.5 1.5 0 01-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 012.43 8.326 13.019 13.019 0 012 5V3.5z" clip-rule="evenodd" />
+                  </svg>
+                  {{ driver.phone }}
+                </span>
+              }
+            </div>
+            <div class="package-count-badge">
+              {{ getPackagesForDriver(driver).length }} package{{ getPackagesForDriver(driver).length > 1 ? 's' : '' }}
+            </div>
+          </div>
+
+          <div class="packages-grid">
+            @for (tp of getPackagesForDriver(driver); track tp.package.id) {
+              <div class="package-card">
+                <div class="package-header">
+                  <span class="package-reference">{{ tp.package.reference }}</span>
+                  <span class="transit-badge">
+                    <span class="pulse"></span>
+                    In Transit
+                  </span>
+                </div>
+
+                <div class="package-details">
+                  <div class="detail-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                      <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                    </svg>
+                    <span>{{ tp.package.receiver_email }}</span>
+                  </div>
+
+                  <div class="detail-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Picked up {{ formatTimeElapsed(tp.package.picked_up_at) }}</span>
+                  </div>
+
+                  @if (tp.deliveryLocation) {
+                    <div class="destination-section">
+                      <h4>Destination</h4>
+                      <div class="destination-name">{{ tp.deliveryLocation.name }}</div>
+                      <div class="destination-address">{{ tp.deliveryLocation.address }}</div>
+
+                      @if (tp.deliveryLocation.google_maps_link) {
+                        <button class="maps-btn" (click)="openGoogleMaps(tp.deliveryLocation.google_maps_link)">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clip-rule="evenodd" />
+                          </svg>
+                          View on Map
+                        </button>
+                      }
+                    </div>
+                  } @else {
+                    <div class="no-destination">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                      </svg>
+                      No destination assigned
+                    </div>
+                  }
+                </div>
+
+                @if (tp.package.po_number) {
+                  <div class="package-footer">
+                    <span class="po-number">PO: {{ tp.package.po_number }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Packages without drivers (edge case) -->
+      @if (hasPackagesWithoutDriver()) {
+        <div class="driver-section unknown-driver">
+          <div class="driver-header">
+            <div class="driver-avatar unknown">?</div>
+            <div class="driver-info">
+              <h2>Unknown Driver</h2>
+              <span class="driver-meta">Driver information not available</span>
+            </div>
+          </div>
+
+          <div class="packages-grid">
+            @for (tp of packagesWithoutDriver(); track tp.package.id) {
+              <div class="package-card">
+                <div class="package-header">
+                  <span class="package-reference">{{ tp.package.reference }}</span>
+                  <span class="transit-badge">
+                    <span class="pulse"></span>
+                    In Transit
+                  </span>
+                </div>
+
+                <div class="package-details">
+                  <div class="detail-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                      <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                    </svg>
+                    <span>{{ tp.package.receiver_email }}</span>
+                  </div>
+
+                  @if (tp.deliveryLocation) {
+                    <div class="destination-section">
+                      <h4>Destination</h4>
+                      <div class="destination-name">{{ tp.deliveryLocation.name }}</div>
+                      @if (tp.deliveryLocation.google_maps_link) {
+                        <button class="maps-btn" (click)="openGoogleMaps(tp.deliveryLocation.google_maps_link)">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clip-rule="evenodd" />
+                          </svg>
+                          View on Map
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

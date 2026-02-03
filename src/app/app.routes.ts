@@ -99,6 +99,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/delivery-location-management/delivery-location-management.component').then(m => m.DeliveryLocationManagementComponent)
       },
       {
+        path: 'driver-map',
+        loadComponent: () => import('./features/admin/driver-map/driver-map.component').then(m => m.DriverMapComponent)
+      },
+      {
         path: '',
         redirectTo: 'staff',
         pathMatch: 'full'
