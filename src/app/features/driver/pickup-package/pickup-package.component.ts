@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { PackageService } from '../../../core/services/package.service';
 import { StaffService } from '../../../core/services/staff.service';
+import { DriverLocationService } from '../../../core/services/driver-location.service';
 import { Package, PACKAGE_STATUS_CONFIG } from '../../../core/models/package.model';
 import { QrScannerComponent } from '../../../shared/components/qr-scanner/qr-scanner.component';
 import { supabase } from '../../../core/supabase/supabase.client';
@@ -80,6 +81,33 @@ import { environment } from '../../../../environments/environment';
               <h2 class="success-title">{{ successMessage() }}</h2>
               @if (emailSent()) {
                 <p class="email-status">📧 Notification email sent to receiver</p>
+              }
+              @if (showLocationSuggestion()) {
+                <div class="location-suggestion">
+                  <div class="suggestion-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                  </div>
+                  <div class="suggestion-content">
+                    <h4>Enable Location Sharing?</h4>
+                    <p>Share your location so receivers can track their delivery in real-time.</p>
+                  </div>
+                  <div class="suggestion-actions">
+                    <button class="btn-suggestion enable" (click)="enableLocationTracking()" [disabled]="isEnablingLocation()">
+                      @if (isEnablingLocation()) {
+                        <span class="mini-spinner"></span>
+                      } @else {
+                        Enable
+                      }
+                    </button>
+                    <button class="btn-suggestion dismiss" (click)="dismissLocationSuggestion()">Not Now</button>
+                  </div>
+                </div>
+              }
+              @if (locationEnabled()) {
+                <p class="location-enabled">📍 Location sharing is active</p>
               }
             } @else if (errorMessage()) {
               <h2 class="error-title">Cannot Pick Up Package</h2>
@@ -301,6 +329,124 @@ import { environment } from '../../../../environments/environment';
       margin: 0 0 1rem;
     }
 
+    .location-suggestion {
+      background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+      border: 1px solid #93c5fd;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 1rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      animation: slideIn 0.3s ease-out;
+
+      .suggestion-icon {
+        width: 40px;
+        height: 40px;
+        background: #3b82f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+
+        svg {
+          width: 24px;
+          height: 24px;
+          color: white;
+        }
+      }
+
+      .suggestion-content {
+        text-align: center;
+
+        h4 {
+          margin: 0 0 0.25rem;
+          font-size: 1rem;
+          color: #1e40af;
+        }
+
+        p {
+          margin: 0;
+          font-size: 0.8rem;
+          color: #3730a3;
+        }
+      }
+
+      .suggestion-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 0.5rem;
+      }
+
+      .btn-suggestion {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        min-width: 80px;
+
+        &.enable {
+          background: #3b82f6;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #2563eb;
+          }
+
+          &:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+          }
+        }
+
+        &.dismiss {
+          background: transparent;
+          color: #6366f1;
+          border: 1px solid #a5b4fc;
+
+          &:hover {
+            background: rgba(99, 102, 241, 0.1);
+          }
+        }
+      }
+
+      .mini-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        display: inline-block;
+        animation: spin 1s linear infinite;
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .location-enabled {
+      text-align: center;
+      color: #3b82f6;
+      font-size: 0.875rem;
+      margin: 0.5rem 0 1rem;
+      padding: 0.5rem;
+      background: #dbeafe;
+      border-radius: 8px;
+    }
+
     h2 {
       text-align: center;
       margin: 0 0 1.5rem;
@@ -433,6 +579,7 @@ import { environment } from '../../../../environments/environment';
 export class PickupPackageComponent {
   private router = inject(Router);
   private packageService = inject(PackageService);
+  private driverLocationService = inject(DriverLocationService);
   protected staffService = inject(StaffService);
 
   // UI State
@@ -443,6 +590,11 @@ export class PickupPackageComponent {
   scannedPackage = signal<Package | null>(null);
   showScanner = signal(true);
   emailSent = signal(false);
+
+  // Location tracking state
+  showLocationSuggestion = signal(false);
+  isEnablingLocation = signal(false);
+  locationEnabled = signal(false);
 
   // Status config for display
   statusConfig = PACKAGE_STATUS_CONFIG;
@@ -533,6 +685,9 @@ export class PickupPackageComponent {
         this.scannedPackage.set(result.package);
         this.successMessage.set(`Package ${pkg.reference} picked up successfully!`);
         this.emailSent.set(result.emailSent);
+
+        // Show location suggestion if not already tracking
+        this.checkAndSuggestLocationTracking();
       }
     } catch (err: any) {
       console.error('Pickup exception:', err);
@@ -548,6 +703,61 @@ export class PickupPackageComponent {
     this.successMessage.set(null);
     this.emailSent.set(false);
     this.showScanner.set(true);
+    this.showLocationSuggestion.set(false);
+  }
+
+  /**
+   * Check if location tracking is active and suggest enabling it if not.
+   */
+  private checkAndSuggestLocationTracking(): void {
+    // Check current tracking state synchronously using BehaviorSubject value
+    this.driverLocationService.tracking$.subscribe(isTracking => {
+      if (isTracking) {
+        this.locationEnabled.set(true);
+        this.showLocationSuggestion.set(false);
+      } else if (this.driverLocationService.isGeolocationSupported()) {
+        // Show suggestion if geolocation is supported but not tracking
+        this.showLocationSuggestion.set(true);
+        this.locationEnabled.set(false);
+      }
+    }).unsubscribe();
+  }
+
+  /**
+   * Enable location tracking when driver accepts the suggestion.
+   */
+  async enableLocationTracking(): Promise<void> {
+    this.isEnablingLocation.set(true);
+
+    const result = await this.driverLocationService.startTracking();
+
+    this.isEnablingLocation.set(false);
+
+    if (result.success) {
+      this.locationEnabled.set(true);
+      this.showLocationSuggestion.set(false);
+
+      // Log the action
+      const pkg = this.scannedPackage();
+      if (pkg) {
+        await this.logAudit('LOCATION_TRACKING_ENABLED', pkg.id, {
+          reference: pkg.reference,
+          triggered_by: 'pickup_suggestion'
+        });
+      }
+    } else {
+      // Show error but don't block the flow
+      console.error('Failed to enable location tracking:', result.error);
+      // Dismiss the suggestion on error - user can enable from dashboard
+      this.showLocationSuggestion.set(false);
+    }
+  }
+
+  /**
+   * Dismiss the location suggestion without enabling tracking.
+   */
+  dismissLocationSuggestion(): void {
+    this.showLocationSuggestion.set(false);
   }
 
   private async logAudit(action: string, entityId: string, metadata: Record<string, unknown>): Promise<void> {
